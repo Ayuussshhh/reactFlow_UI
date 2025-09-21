@@ -1,53 +1,196 @@
-import { Handle, Position } from 'reactflow';
+"use client";
 
-function TableNode({ data }) {
+import { useState, useCallback } from 'react';
+import { Handle, Position } from 'reactflow';
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+
+function TableNode({ data, id, onNodesChange }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [columns, setColumns] = useState(data.columns || []);
+  const [newColumn, setNewColumn] = useState({ name: '', type: '', constraints: '' });
+
+  const handleAddColumn = () => {
+    if (!newColumn.name || !newColumn.type) return;
+    const updatedColumns = [...columns, { ...newColumn }];
+    setColumns(updatedColumns);
+    setNewColumn({ name: '', type: '', constraints: '' });
+    onNodesChange([
+      {
+        id,
+        type: 'update',
+        item: { ...data, columns: updatedColumns },
+      },
+    ]);
+  };
+
+  const handleDeleteColumn = (index) => {
+    const updatedColumns = columns.filter((_, i) => i !== index);
+    setColumns(updatedColumns);
+    onNodesChange([
+      {
+        id,
+        type: 'update',
+        item: { ...data, columns: updatedColumns },
+      },
+    ]);
+  };
+
+  const handleColumnChange = (index, field, value) => {
+    const updatedColumns = columns.map((col, i) =>
+      i === index ? { ...col, [field]: value } : col
+    );
+    setColumns(updatedColumns);
+    onNodesChange([
+      {
+        id,
+        type: 'update',
+        item: { ...data, columns: updatedColumns },
+      },
+    ]);
+  };
+
   return (
-    <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm min-w-[220px] transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
-      <div className="flex items-center space-x-2 mb-2">
-        <svg
-          className="w-5 h-5 text-indigo-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md w-72 max-w-xs transition-all duration-200 hover:shadow-lg">
+      {/* Node Header */}
+      <div className="bg-indigo-50 text-indigo-800 font-semibold text-sm px-4 py-2 rounded-t-lg flex items-center justify-between">
+        <span>{data.label}</span>
+        <button
+          onClick={() => setIsEditing(!isEditing)}
+          className="text-indigo-600 hover:text-indigo-800"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-        </svg>
-        <h3 className="text-base font-medium text-gray-800">{data.label}</h3>
+          <PencilIcon className="w-4 h-4" />
+        </button>
       </div>
-      <p className="text-xs text-gray-500 mb-2">{data.db}</p>
-      <hr className="border-gray-100 mb-2" />
-      {data.loading ? (
-        <p className="text-xs text-gray-400 italic">Loading columns...</p>
-      ) : data.columns.length === 0 ? (
-        <p className="text-xs text-gray-400">No columns defined</p>
-      ) : (
-        <ul className="space-y-1">
-          {data.columns.map((col, index) => (
-            <li
-              key={`${data.label}-${col.name}-${index}`}
-              className="flex items-center space-x-2 text-xs text-gray-600"
+
+      {/* Column List */}
+      <div className="p-4">
+        {data.loading ? (
+          <div className="text-gray-500 text-sm">Loading columns...</div>
+        ) : columns.length === 0 ? (
+          <div className="text-gray-500 text-sm italic">No columns defined</div>
+        ) : (
+          <table className="w-full text-sm text-gray-700">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="py-2 text-left font-medium">Name</th>
+                <th className="py-2 text-left font-medium">Type</th>
+                <th className="py-2 text-left font-medium">Constraints</th>
+                <th className="py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {columns.map((column, index) => (
+                <tr
+                  key={index}
+                  className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                >
+                  <td className="py-2">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={column.name}
+                        onChange={(e) => handleColumnChange(index, 'name', e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    ) : (
+                      <span>{column.name}</span>
+                    )}
+                  </td>
+                  <td className="py-2">
+                    {isEditing ? (
+                      <select
+                        value={column.type}
+                        onChange={(e) => handleColumnChange(index, 'type', e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">Select Type</option>
+                        <option value="INT">INT</option>
+                        <option value="VARCHAR">VARCHAR</option>
+                        <option value="TEXT">TEXT</option>
+                        <option value="DATE">DATE</option>
+                        <option value="BOOLEAN">BOOLEAN</option>
+                      </select>
+                    ) : (
+                      <span>{column.type}</span>
+                    )}
+                  </td>
+                  <td className="py-2">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={column.constraints || ''}
+                        onChange={(e) => handleColumnChange(index, 'constraints', e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    ) : (
+                      <span>{column.constraints || '-'}</span>
+                    )}
+                  </td>
+                  <td className="py-2">
+                    {isEditing && (
+                      <button
+                        onClick={() => handleDeleteColumn(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Add Column Form */}
+        {isEditing && (
+          <div className="mt-4 flex items-center space-x-2">
+            <input
+              type="text"
+              placeholder="Column name"
+              value={newColumn.name}
+              onChange={(e) => setNewColumn({ ...newColumn, name: e.target.value })}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <select
+              value={newColumn.type}
+              onChange={(e) => setNewColumn({ ...newColumn, type: e.target.value })}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <span className="w-1.5 h-1.5 bg-indigo-300 rounded-full"></span>
-              <span>{col.name}:</span>
-              <span className="text-gray-400 font-mono">{col.type}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+              <option value="">Type</option>
+              <option value="INT">INT</option>
+              <option value="VARCHAR">VARCHAR</option>
+              <option value="TEXT">TEXT</option>
+              <option value="DATE">DATE</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Constraints"
+              value={newColumn.constraints}
+              onChange={(e) => setNewColumn({ ...newColumn, constraints: e.target.value })}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              onClick={handleAddColumn}
+              className="px-3 py-2 bg-indigo-500 text-white text-sm font-medium rounded-md hover:bg-indigo-600 transition-all duration-200"
+            >
+              Add
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Handles for Connections */}
       <Handle
         type="target"
-        position={Position.Left}
-        className="w-2 h-2 bg-indigo-500 border border-white rounded-full"
+        position={Position.Top}
+        className="w-2 h-2 bg-indigo-500 rounded-full"
       />
       <Handle
         type="source"
-        position={Position.Right}
-        className="w-2 h-2 bg-indigo-500 border border-white rounded-full"
+        position={Position.Bottom}
+        className="w-2 h-2 bg-indigo-500 rounded-full"
       />
     </div>
   );
