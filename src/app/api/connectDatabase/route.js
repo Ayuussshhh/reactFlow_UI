@@ -8,7 +8,7 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Database name is required.' }, { status: 400 });
     }
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    const res = await axios.post(`${backendUrl}/connectDatabase`, { dbName });
+    const res = await axios.post(`${backendUrl}/db/connect`, { dbName });
     return NextResponse.json(res.data);
   } catch (error) {
     console.error('Error connecting to database:', error.message);

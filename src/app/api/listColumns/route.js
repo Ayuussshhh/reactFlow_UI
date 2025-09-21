@@ -14,7 +14,7 @@ export async function GET(req) {
     const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
 
     // pass query param to backend
-    const res = await axios.get(`${backendUrl}/listColumns?tableName=${tableName}`);
+    const res = await axios.get(`${backendUrl}/table/columns?tableName=${tableName}`);
 
     return NextResponse.json(res.data);
   } catch (error) {

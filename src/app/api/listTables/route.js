@@ -4,7 +4,7 @@ import axios from 'axios';
 export async function GET() {
   try {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    const res = await axios.get(`${backendUrl}/listTables`);
+    const res = await axios.get(`${backendUrl}/table/list`);
     return NextResponse.json(res.data);
   } catch (error) {
     console.error('Error listing tables:', error.message);

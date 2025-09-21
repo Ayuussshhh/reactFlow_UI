@@ -11,7 +11,7 @@ export async function POST(request) {
       );
     }
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    const res = await axios.post(`${backendUrl}/createTable`, { tableName, columns });
+    const res = await axios.post(`${backendUrl}/table/create`, { tableName, columns });
     return NextResponse.json(res.data);
   } catch (error) {
     console.error('Error creating table:', error.message);
