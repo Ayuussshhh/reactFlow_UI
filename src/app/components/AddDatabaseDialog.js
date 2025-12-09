@@ -1,30 +1,51 @@
+"use client";
+
 function AddDatabaseDialog({ open, setOpen, dbName, setDbName, handleCreateDatabase }) {
   if (!open) return null;
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') handleCreateDatabase();
+    if (e.key === 'Escape') setOpen(false);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-80 shadow-sm transform transition-all duration-200">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Create New Database</h2>
-        <input
-          autoFocus
-          type="text"
-          placeholder="Database Name"
-          className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          value={dbName}
-          onChange={(e) => setDbName(e.target.value)}
-        />
-        <div className="flex justify-end space-x-2 mt-4">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+      <div className="bg-white rounded-2xl p-8 w-96 shadow-2xl border border-neutral-200/50 transform transition-all duration-300 animate-scale-in">
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-neutral-900 mb-1">Create Database</h2>
+          <p className="text-sm text-neutral-500">Add a new database to your workspace</p>
+        </div>
+
+        {/* Input */}
+        <div className="space-y-2 mb-6">
+          <label className="block text-sm font-semibold text-neutral-700">Database Name</label>
+          <input
+            autoFocus
+            type="text"
+            placeholder="e.g., my_app_db, users_service..."
+            className="input-field-lg w-full"
+            value={dbName}
+            onChange={(e) => setDbName(e.target.value)}
+            onKeyPress={handleKeyPress}
+          />
+          <p className="text-xs text-neutral-500">Use lowercase letters, numbers, and underscores</p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex space-x-3 justify-end">
           <button
             onClick={() => setOpen(false)}
-            className="px-4 py-1.5 text-gray-600 rounded-md hover:bg-gray-100 transition-colors text-sm"
+            className="btn-ghost px-6"
           >
             Cancel
           </button>
           <button
             onClick={handleCreateDatabase}
-            className="px-4 py-1.5 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors text-sm"
+            disabled={!dbName.trim()}
+            className="btn-primary px-6"
           >
-            Create
+            Create Database
           </button>
         </div>
       </div>

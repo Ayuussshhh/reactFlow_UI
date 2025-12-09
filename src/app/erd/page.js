@@ -102,6 +102,7 @@ export default function DatabaseManager() {
             db: dbName,
             columns,
             loading: false,
+            onNodesChange,
           },
         };
       })
@@ -185,9 +186,9 @@ export default function DatabaseManager() {
 
   return (
     <ReactFlowProvider>
-      <div className="h-screen flex flex-col">
+      <div className="h-screen flex flex-col bg-gradient-to-br from-neutral-50 via-white to-neutral-100">
         <Header onFetchDatabases={fetchDatabases} />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
           <Sidebar
             databases={databases}
             selectedDb={selectedDb}
