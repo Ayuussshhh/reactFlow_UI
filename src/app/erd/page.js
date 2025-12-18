@@ -3,14 +3,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ReactFlowProvider, useNodesState, useEdgesState, addEdge } from 'reactflow';
 import axios from 'axios';
-import TableNode from '../components/TableNode';
-import Header from '../components/Header';
-import Sidebar from '../components/Sidebar';
-import Canvas from '../components/Canvas';
-import AddDatabaseDialog from '../components/AddDatabaseDialog';
-import AddTableDialog from '../components/AddTableDialog';
-import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
-import Snackbar from '../components/Snackbar';
+import TableNode from '../../components/TableNode';
+import Header from '../../components/Header';
+import Sidebar from '../../components/Sidebar';
+import Canvas from '../../components/Canvas';
+import AddDatabaseDialog from '../../components/AddDatabaseDialog';
+import AddTableDialog from '../../components/AddTableDialog';
+import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
+import Snackbar from '../../components/Snackbar';
 import { v4 as uuidv4 } from 'uuid';
 
 const nodeTypes = { tableNode: TableNode };
