@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { ReactFlow, Controls, MiniMap, Background } from 'reactflow';
 import { v4 as uuidv4 } from 'uuid';
 import dagre from '@dagrejs/dagre';
@@ -9,13 +9,33 @@ import { useContextMenu } from 'react-contexify';
 import 'react-contexify/dist/ReactContexify.css';
 import { Menu, Item } from 'react-contexify';
 import Toolbar from './Toolbar';
+import ForeignKeyDialog from './ForeignKeyDialog';
+import ForeignKeyEdgeLabel from './ForeignKeyEdgeLabel';
+import axios from 'axios';
 
 const MENU_ID = 'canvas-context-menu';
 
-function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragOver, nodeTypes, connectToDatabase, fetchColumns }) {
+function Canvas({ 
+  nodes, 
+  edges, 
+  onNodesChange, 
+  onEdgesChange, 
+  onConnect, 
+  onDragOver, 
+  nodeTypes, 
+  connectToDatabase, 
+  fetchColumns,
+  showSnackbar 
+}) {
   const reactFlowWrapper = useRef(null);
   const reactFlowInstanceRef = useRef(null);
   const { show } = useContextMenu({ id: MENU_ID });
+  
+  // Foreign key dialog state
+  const [fkDialogOpen, setFkDialogOpen] = useState(false);
+  const [pendingConnection, setPendingConnection] = useState(null);
+  const [allTables, setAllTables] = useState([]);
+  const [availableColumns, setAvailableColumns] = useState([]);
 
   // Store reactFlow instance on initialization
   const handleInit = useCallback((instance) => {
@@ -39,6 +59,151 @@ function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragO
     return reactFlowInstanceRef.current?.zoomOut(opts);
   }, []);
 
+  // Get all table names from nodes
+  const getTableNames = useCallback(() => {
+    return nodes.map((node) => node.data.label).filter(Boolean);
+  }, [nodes]);
+
+  // Validate column connection for foreign key
+  const validateColumnConnection = useCallback(
+    (sourceHandle, targetHandle) => {
+      try {
+        const sourceNodeId = sourceHandle.nodeId || sourceHandle.split('-')[0];
+        const targetNodeId = targetHandle.nodeId || targetHandle.split('-')[0];
+
+        const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+        const targetNode = nodes.find((n) => n.id === targetNodeId);
+
+        if (!sourceNode || !targetNode) return false;
+        if (sourceNode.id === targetNode.id) return false; // Same table
+
+        return true;
+      } catch (err) {
+        console.error('Error validating connection:', err);
+        return false;
+      }
+    },
+    [nodes]
+  );
+
+  // Enhanced onConnect to handle foreign keys
+  const handleConnect = useCallback(
+    (connection) => {
+      // Check if this is a column-level connection (contains 'col-')
+      if (
+        connection.sourceHandle?.includes('col-') &&
+        connection.targetHandle?.includes('col-')
+      ) {
+        // Extract column indices
+        const sourceColIdx = connection.sourceHandle.split('-')[1];
+        const targetColIdx = connection.targetHandle.split('-')[1];
+
+        const sourceNode = nodes.find((n) => n.id === connection.source);
+        const targetNode = nodes.find((n) => n.id === connection.target);
+
+        if (!sourceNode || !targetNode) return;
+
+        const sourceTableName = sourceNode.data.label;
+        const targetTableName = targetNode.data.label;
+        const sourceColumnName = sourceNode.data.columns[sourceColIdx]?.name;
+        const targetColumnName = targetNode.data.columns[targetColIdx]?.name;
+
+        if (!sourceTableName || !targetTableName || !sourceColumnName || !targetColumnName) {
+          showSnackbar('Invalid column selection', 'error');
+          return;
+        }
+
+        // Set pending connection and show dialog
+        setPendingConnection({
+          source: connection.source,
+          target: connection.target,
+          sourceTable: sourceTableName,
+          sourceColumn: sourceColumnName,
+          targetTable: targetTableName,
+          targetColumn: targetColumnName,
+        });
+
+        setAllTables(getTableNames());
+        setAvailableColumns([targetColumnName]); // Pre-fill with the target column
+        setFkDialogOpen(true);
+      } else {
+        // Regular edge connection
+        onConnect(connection);
+      }
+    },
+    [nodes, onConnect, showSnackbar, getTableNames]
+  );
+
+  // Handle foreign key creation
+  const handleForeignKeyCreate = async (config) => {
+    if (!pendingConnection) return;
+
+    try {
+      const response = await axios.post('/foreignKey/create', {
+        sourceTable: pendingConnection.sourceTable,
+        sourceColumn: pendingConnection.sourceColumn,
+        referencedTable: config.referencedTable,
+        referencedColumn: config.referencedColumn,
+        onDelete: config.onDelete,
+        onUpdate: config.onUpdate,
+        constraintName: `fk_${pendingConnection.sourceTable}_${pendingConnection.sourceColumn}`,
+      });
+
+      // Add edge to the canvas
+      const newEdge = {
+        id: `fk-${uuidv4()}`,
+        source: pendingConnection.source,
+        target: pendingConnection.target,
+        sourceHandle: `col-${nodes.find((n) => n.id === pendingConnection.source)?.data.columns.findIndex((c) => c.name === pendingConnection.sourceColumn)}-right`,
+        targetHandle: `col-${nodes.find((n) => n.id === pendingConnection.target)?.data.columns.findIndex((c) => c.name === config.referencedColumn)}-left`,
+        data: {
+          relationshipType: '1:N',
+          onDelete: config.onDelete,
+          onUpdate: config.onUpdate,
+        },
+        label: `${config.onDelete} / ${config.onUpdate}`,
+        type: 'foreignKey',
+      };
+
+      onEdgesChange([{ type: 'add', item: newEdge }]);
+      showSnackbar(
+        `Foreign key created: ${pendingConnection.sourceTable}.${pendingConnection.sourceColumn} → ${config.referencedTable}.${config.referencedColumn}`,
+        'success'
+      );
+      setFkDialogOpen(false);
+      setPendingConnection(null);
+    } catch (err) {
+      showSnackbar(
+        err.response?.data?.message || 'Error creating foreign key',
+        'error'
+      );
+    }
+  };
+
+  // Handle foreign key deletion
+  const handleDeleteForeignKey = async (edgeId) => {
+    try {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+
+      const sourceNode = nodes.find((n) => n.id === edge.source);
+      if (!sourceNode) return;
+
+      await axios.post('/foreignKey/delete', {
+        tableName: sourceNode.data.label,
+        constraintName: `fk_${sourceNode.data.label}_${edge.sourceHandle}`,
+      });
+
+      onEdgesChange([{ id: edgeId, type: 'remove' }]);
+      showSnackbar('Foreign key deleted successfully', 'success');
+    } catch (err) {
+      showSnackbar(
+        err.response?.data?.message || 'Error deleting foreign key',
+        'error'
+      );
+    }
+  };
+
   // Auto-layout function using Dagre
   const getLayoutedElements = (nodes, edges, direction = 'TB') => {
     const dagreGraph = new dagre.graphlib.Graph();
@@ -46,7 +211,7 @@ function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragO
     dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: 140 });
 
     nodes.forEach((node) => {
-      const width = 320;
+      const width = 400;
       const height = 120 + 48 * (node.data.columns?.length || 0);
       dagreGraph.setNode(node.id, { width, height });
     });
@@ -64,7 +229,7 @@ function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragO
         targetPosition: direction === 'TB' ? 'top' : 'left',
         sourcePosition: direction === 'TB' ? 'bottom' : 'right',
         position: {
-          x: nodeWithPosition.x - 320 / 2 + Math.random() / 1000,
+          x: nodeWithPosition.x - 400 / 2 + Math.random() / 1000,
           y: nodeWithPosition.y - (120 + 48 * (node.data.columns?.length || 0)) / 2,
         },
       };
@@ -145,7 +310,9 @@ function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragO
         data: {
           label: 'New Table',
           db: null,
-          columns: [{ name: 'id', type: 'INT', constraints: 'PRIMARY KEY' }],
+          columns: [{ name: 'id', type: 'SERIAL', nullable: false }],
+          primaryKeys: ['id'],
+          foreignKeys: {},
           loading: false,
           onNodesChange,
         },
@@ -165,6 +332,10 @@ function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragO
   const handleZoomOut = () => zoomOut({ duration: 300 });
   const handleFitView = () => fitView({ duration: 500 });
 
+  const edgeTypes = {
+    foreignKey: ForeignKeyEdgeLabel,
+  };
+
   return (
     <div className="flex-1 relative h-full bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 transition-colors duration-300">
       {/* Premium Toolbar */}
@@ -174,6 +345,32 @@ function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragO
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onFitView={handleFitView}
+      />
+
+      {/* Foreign Key Dialog */}
+      <ForeignKeyDialog
+        open={fkDialogOpen}
+        onClose={() => {
+          setFkDialogOpen(false);
+          setPendingConnection(null);
+        }}
+        onConfirm={handleForeignKeyCreate}
+        sourceTable={pendingConnection?.sourceTable}
+        sourceColumn={pendingConnection?.sourceColumn}
+        availableTables={allTables}
+        availableColumns={availableColumns}
+        selectedReferencedTable={pendingConnection?.targetTable}
+        onTableSelect={(tableName) => {
+          // Fetch columns for the selected table
+          const selectedNode = nodes.find((n) => n.data.label === tableName);
+          if (selectedNode) {
+            setAvailableColumns(
+              selectedNode.data.columns
+                .filter((col) => col.name) // Only valid columns
+                .map((col) => col.name)
+            );
+          }
+        }}
       />
 
       {/* ReactFlow Canvas */}
@@ -189,10 +386,11 @@ function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onDragO
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
+          onConnect={handleConnect}
           onDrop={handleDrop}
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
           snapToGrid
           snapGrid={[20, 20]}

@@ -208,6 +208,7 @@ export default function DatabaseManager() {
             nodeTypes={nodeTypes}
             connectToDatabase={connectToDatabase}
             fetchColumns={fetchColumns}
+            showSnackbar={showSnackbar}
           />
         </div>
         <AddDatabaseDialog
