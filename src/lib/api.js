@@ -1,6 +1,9 @@
 /**
  * API Client for SchemaFlow
  * Centralized API client connecting to the Rust backend
+ * 
+ * NEW: Use connectionAPI for dynamic database connections
+ * LEGACY: databaseAPI is kept for backward compatibility
  */
 
 import axios from 'axios';
@@ -38,7 +41,116 @@ api.interceptors.response.use(
   }
 );
 
-// ==================== Database Operations ====================
+// ==================== NEW: Connection API ====================
+// Use this for dynamic database connections via connection string
+
+export const connectionAPI = {
+  /**
+   * Connect to a database using a connection string
+   * @param {string} connectionString - PostgreSQL connection string (postgres://user:pass@host:port/db)
+   * @param {string} [name] - Optional friendly name for the connection
+   * @param {string} [environment] - Optional environment: development, staging, production
+   * @returns {Promise<{connection: object, schema: object}>}
+   */
+  connect: async (connectionString, name = null, environment = null) => {
+    const payload = { connectionString };
+    if (name) payload.name = name;
+    if (environment) payload.environment = environment;
+    
+    const { data } = await api.post('/api/connections', payload);
+    return data.data; // Returns { connection, schema }
+  },
+
+  /**
+   * Test a connection string without actually connecting
+   * @param {string} connectionString - PostgreSQL connection string
+   * @returns {Promise<{success: boolean, latencyMs: number, serverVersion: string}>}
+   */
+  test: async (connectionString) => {
+    const { data } = await api.post('/api/connections/test', { connectionString });
+    return data.data;
+  },
+
+  /**
+   * List all active connections
+   * @returns {Promise<Array>}
+   */
+  list: async () => {
+    const { data } = await api.get('/api/connections');
+    return data.data || [];
+  },
+
+  /**
+   * Get a specific connection by ID
+   * @param {string} id - Connection UUID
+   * @returns {Promise<object>}
+   */
+  get: async (id) => {
+    const { data } = await api.get(`/api/connections/${id}`);
+    return data.data;
+  },
+
+  /**
+   * Disconnect from a specific database
+   * @param {string} id - Connection UUID
+   */
+  disconnect: async (id) => {
+    const { data } = await api.delete(`/api/connections/${id}`);
+    return data;
+  },
+
+  /**
+   * Disconnect from all databases
+   */
+  disconnectAll: async () => {
+    const { data } = await api.post('/api/connections/disconnect-all');
+    return data;
+  },
+
+  /**
+   * Get the currently active connection
+   * @returns {Promise<{hasActiveConnection: boolean, connection?: object}>}
+   */
+  getActive: async () => {
+    const { data } = await api.get('/api/connections/active');
+    return data;
+  },
+
+  /**
+   * Set the active connection
+   * @param {string} connectionId - Connection UUID to make active
+   */
+  setActive: async (connectionId) => {
+    const { data } = await api.post('/api/connections/active', { connectionId });
+    return data;
+  },
+
+  /**
+   * Re-introspect schema for a connection (refresh)
+   * @param {string} id - Connection UUID
+   * @returns {Promise<object>} - Schema snapshot
+   */
+  introspect: async (id) => {
+    const { data } = await api.post(`/api/connections/${id}/introspect`);
+    return data.data;
+  },
+};
+
+// ==================== Schema API ====================
+
+export const schemaAPI = {
+  /**
+   * Get schema for the currently active connection
+   * @returns {Promise<object>} - Full schema with tables, foreign keys, indexes
+   */
+  get: async () => {
+    const { data } = await api.get('/api/schema');
+    return data.data;
+  },
+};
+
+// ==================== LEGACY: Database Operations ====================
+// These require database configured in .env - use connectionAPI for dynamic connections
 
 export const databaseAPI = {
   /**
@@ -209,9 +321,18 @@ export const healthAPI = {
 
 // Export all APIs
 const allAPIs = {
-  database: databaseAPI,
+  // NEW: Dynamic connections
+  connection: connectionAPI,
+  schema: schemaAPI,
+  
+  // Operations (work with active connection)
   table: tableAPI,
   foreignKey: foreignKeyAPI,
+  
+  // Legacy (requires .env database config)
+  database: databaseAPI,
+  
+  // Utils
   health: healthAPI,
 };
 

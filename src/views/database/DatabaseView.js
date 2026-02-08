@@ -14,12 +14,14 @@ import { Sidebar } from '../../components/layout';
 import { SidePanel } from '../../components/panels';
 import { CommandPalette } from '../../components/command';
 import { Header } from '../../components/layout';
-import { useAppStore } from '../../store';
+import { ConnectDatabaseDialog } from '../../components/dialogs';
+import { useAppStore, useCanvasStore } from '../../store';
 import { cn } from '../../lib/utils';
 
 export default function DatabaseView() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [showConnectDialog, setShowConnectDialog] = useState(false);
   
   const { 
     selectedObject,
@@ -28,7 +30,49 @@ export default function DatabaseView() {
     setSidePanelOpen,
     notifications,
     clearNotification,
+    activeConnection,
+    connection,
+    connectWithConnectionString,
+    fetchConnections,
+    tables,
+    foreignKeys,
+    isLoadingSchema,
   } = useAppStore();
+
+  const { buildNodesFromTables, buildEdgesFromForeignKeys } = useCanvasStore();
+
+  // Check for existing connections on mount
+  useEffect(() => {
+    const initialize = async () => {
+      const connections = await fetchConnections();
+      
+      // If no active connection, show the connect dialog
+      if (!connections || connections.length === 0 || !connections.some(c => c.is_active)) {
+        setShowConnectDialog(true);
+      }
+    };
+    
+    initialize();
+  }, [fetchConnections]);
+
+  // Build canvas nodes when tables change
+  useEffect(() => {
+    if (tables && tables.length > 0) {
+      console.log('[DatabaseView] Building nodes from tables:', tables.length);
+      buildNodesFromTables(tables);
+      
+      if (foreignKeys && foreignKeys.length > 0) {
+        console.log('[DatabaseView] Building edges from foreign keys:', foreignKeys.length);
+        buildEdgesFromForeignKeys(foreignKeys);
+      }
+    }
+  }, [tables, foreignKeys, buildNodesFromTables, buildEdgesFromForeignKeys]);
+
+  // Handle successful connection
+  const handleConnected = async (result) => {
+    console.log('[DatabaseView] Connected:', result);
+    setShowConnectDialog(false);
+  };
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -105,10 +149,18 @@ export default function DatabaseView() {
         onClose={() => setCommandPaletteOpen(false)}
       />
 
+      {/* Connect Database Dialog */}
+      <ConnectDatabaseDialog
+        open={showConnectDialog}
+        onClose={() => setShowConnectDialog(false)}
+        onConnected={handleConnected}
+      />
+
       {/* Header */}
       <Header
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        onOpenConnect={() => setShowConnectDialog(true)}
         sidebarOpen={sidebarOpen}
       />
 
@@ -123,6 +175,15 @@ export default function DatabaseView() {
 
         {/* Object Canvas */}
         <div className="flex-1 relative">
+          {isLoadingSchema ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm z-50">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-200 border-t-primary-600 mb-4"></div>
+                <p className="text-sm text-gray-600 font-medium">Introspecting schema...</p>
+                <p className="text-xs text-gray-400 mt-1">Reading tables, columns, and relationships</p>
+              </div>
+            </div>
+          ) : null}
           <TldrawCanvas />
         </div>
 

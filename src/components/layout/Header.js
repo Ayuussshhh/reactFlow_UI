@@ -21,9 +21,9 @@ import {
 import { useAppStore } from '../../store';
 import { cn } from '../../lib/utils';
 
-export default function Header({ onToggleSidebar, onOpenCommandPalette, sidebarOpen }) {
+export default function Header({ onToggleSidebar, onOpenCommandPalette, onOpenConnect, sidebarOpen }) {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  const { connection, setSQLPanelOpen, sqlPanelOpen } = useAppStore();
+  const { connection, activeConnection, setSQLPanelOpen, sqlPanelOpen } = useAppStore();
 
   return (
     <header className="flex-shrink-0 h-12 flex items-center justify-between px-3 bg-white border-b border-gray-200">
@@ -68,11 +68,21 @@ export default function Header({ onToggleSidebar, onOpenCommandPalette, sidebarO
       {/* Right Section */}
       <div className="flex items-center gap-1">
         {/* Connection Status */}
-        {connection.isConnected && (
+        {connection.isConnected ? (
           <div className="hidden md:flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-md mr-2">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-            <span className="text-[10px] font-medium text-emerald-700">{connection.database}</span>
+            <span className="text-[10px] font-medium text-emerald-700">
+              {activeConnection?.alias || connection.database}
+            </span>
           </div>
+        ) : (
+          <button
+            onClick={onOpenConnect}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium transition-colors mr-2"
+          >
+            <CircleStackIcon className="w-4 h-4" />
+            <span>Connect Database</span>
+          </button>
         )}
 
         {/* SQL Toggle */}

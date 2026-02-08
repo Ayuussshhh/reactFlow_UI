@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { databaseAPI, tableAPI, foreignKeyAPI } from '../lib/api';
+import { databaseAPI, tableAPI, foreignKeyAPI, connectionAPI, schemaAPI } from '../lib/api';
 
 /**
  * Main application store
@@ -14,6 +14,12 @@ import { databaseAPI, tableAPI, foreignKeyAPI } from '../lib/api';
 export const useAppStore = create(
   subscribeWithSelector((set, get) => ({
     // ==================== Connection State ====================
+    // New connection system (v2)
+    activeConnection: null, // { id, alias, environment, database, host }
+    connections: [], // All available connections
+    isLoadingSchema: false,
+    
+    // Legacy connection (for backward compatibility)
     connection: {
       isConnected: false,
       database: null,
@@ -50,7 +56,152 @@ export const useAppStore = create(
 
     // ==================== Actions ====================
     
-    // Database actions
+    // NEW: Connection Management (v2)
+    connectWithConnectionString: async (connectionString, name, environment) => {
+      try {
+        const result = await connectionAPI.connect(connectionString, name, environment);
+        
+        // result contains { connection, schema }
+        const { connection: connInfo, schema } = result;
+        
+        // Convert schema tables to our format
+        const tables = schema.tables.map(table => ({
+          name: table.name,
+          schema: table.schema || 'public',
+          columns: table.columns.map(col => ({
+            name: col.name,
+            type: col.dataType || col.data_type,
+            nullable: col.nullable,
+            isPrimaryKey: col.isPrimaryKey || col.is_primary_key || false,
+            isUnique: col.isUnique || col.is_unique || false,
+            defaultValue: col.defaultValue || col.default_value,
+          })),
+        }));
+        
+        // Convert foreign keys
+        const foreignKeys = schema.foreignKeys || schema.foreign_keys || [];
+        
+        set({ 
+          activeConnection: connInfo,
+          tables, 
+          foreignKeys,
+          connection: {
+            isConnected: true,
+            database: connInfo.database,
+            host: connInfo.host || null,
+            user: null,
+            connectedAt: connInfo.connectedAt || new Date().toISOString(),
+          },
+        });
+        
+        get().addNotification(`Connected to ${name || connInfo.database}`, 'success');
+        return result;
+      } catch (error) {
+        get().addNotification(error.message, 'error');
+        throw error;
+      }
+    },
+
+    fetchConnections: async () => {
+      try {
+        const connections = await connectionAPI.list();
+        set({ connections });
+        
+        // Set active connection if there's one marked as active
+        const active = connections.find(c => c.is_active);
+        if (active) {
+          set({ activeConnection: active });
+        }
+        
+        return connections;
+      } catch (error) {
+        console.error('Failed to fetch connections:', error);
+        return [];
+      }
+    },
+
+    introspectSchema: async (connectionId) => {
+      set({ isLoadingSchema: true });
+      try {
+        const schema = await connectionAPI.introspect(connectionId);
+        
+        // Convert schema tables to our format
+        const tables = schema.tables.map(table => ({
+          name: table.name,
+          schema: table.schema || 'public',
+          columns: table.columns.map(col => ({
+            name: col.name,
+            type: col.data_type,
+            nullable: col.nullable,
+            isPrimaryKey: col.is_primary_key || false,
+            isUnique: col.is_unique || false,
+            defaultValue: col.default_value,
+          })),
+        }));
+        
+        // Convert foreign keys
+        const foreignKeys = [];
+        schema.tables.forEach(table => {
+          if (table.foreign_keys) {
+            table.foreign_keys.forEach(fk => {
+              foreignKeys.push({
+                sourceTable: table.name,
+                ...fk,
+              });
+            });
+          }
+        });
+        
+        set({ 
+          tables, 
+          foreignKeys,
+          isLoadingSchema: false,
+          connection: {
+            isConnected: true,
+            database: schema.database_name,
+            host: null,
+            user: null,
+            connectedAt: schema.captured_at,
+          },
+        });
+        
+        return schema;
+      } catch (error) {
+        get().addNotification(error.message, 'error');
+        set({ isLoadingSchema: false });
+        throw error;
+      }
+    },
+
+    disconnectConnection: async (connectionId) => {
+      try {
+        await connectionAPI.disconnect(connectionId);
+        await get().fetchConnections();
+        
+        // Clear state if this was the active connection
+        const state = get();
+        if (state.activeConnection?.id === connectionId) {
+          set({
+            activeConnection: null,
+            tables: [],
+            foreignKeys: [],
+            connection: {
+              isConnected: false,
+              database: null,
+              host: null,
+              user: null,
+              connectedAt: null,
+            },
+          });
+        }
+        
+        get().addNotification('Disconnected', 'info');
+      } catch (error) {
+        get().addNotification(error.message, 'error');
+      }
+    },
+    
+    // Database actions (legacy)
     fetchDatabases: async () => {
       set({ isLoadingDatabases: true });
       try {
