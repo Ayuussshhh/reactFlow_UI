@@ -149,6 +149,177 @@ export const schemaAPI = {
   },
 };
 
+// ==================== Governance Pipeline API ====================
+// The four-stage governance pipeline for safe schema changes
+
+export const pipelineAPI = {
+  // -------------------- Stage 1: Mirror (Introspection) --------------------
+  
+  /**
+   * Build a semantic map ("Digital Twin") of the database
+   * @param {string} connectionId - Connection UUID
+   * @returns {Promise<{semanticMap: object}>}
+   */
+  buildSemanticMap: async (connectionId) => {
+    const { data } = await api.post(`/api/pipeline/mirror/${connectionId}`);
+    return data.data;
+  },
+
+  /**
+   * Check for schema drift (differences between stored and live schema)
+   * @param {string} connectionId - Connection UUID
+   * @returns {Promise<{hasDrift: boolean, differences: array}>}
+   */
+  checkDrift: async (connectionId) => {
+    const { data } = await api.post(`/api/pipeline/drift/${connectionId}`);
+    return data.data;
+  },
+
+  // -------------------- Stage 2: Proposal (Glow Layer) --------------------
+  
+  /**
+   * Create a new schema change proposal
+   * @param {object} proposal - { connectionId, title, description }
+   * @returns {Promise<{proposal: object}>}
+   */
+  createProposal: async (proposal) => {
+    const { data } = await api.post('/api/pipeline/proposals', proposal);
+    return data.data;
+  },
+
+  /**
+   * List all proposals, optionally filtered
+   * @param {object} filters - { connectionId?, status?, authorId? }
+   * @returns {Promise<{proposals: array}>}
+   */
+  listProposals: async (filters = {}) => {
+    const { data } = await api.get('/api/pipeline/proposals', { params: filters });
+    return data.data;
+  },
+
+  /**
+   * Get a specific proposal by ID
+   * @param {string} proposalId - Proposal UUID
+   * @returns {Promise<{proposal: object}>}
+   */
+  getProposal: async (proposalId) => {
+    const { data } = await api.get(`/api/pipeline/proposals/${proposalId}`);
+    return data.data;
+  },
+
+  /**
+   * Add a schema change to a proposal
+   * @param {string} proposalId - Proposal UUID
+   * @param {object} change - Schema change object (AddColumn, DropColumn, etc.)
+   * @returns {Promise<{proposal: object}>}
+   */
+  addChange: async (proposalId, change) => {
+    const { data } = await api.post(`/api/pipeline/proposals/${proposalId}/changes`, { change });
+    return data.data;
+  },
+
+  /**
+   * Generate migration SQL for a proposal
+   * @param {string} proposalId - Proposal UUID
+   * @returns {Promise<{proposal: object, migration: object}>}
+   */
+  generateMigration: async (proposalId) => {
+    const { data } = await api.post(`/api/pipeline/proposals/${proposalId}/migration`);
+    return data.data;
+  },
+
+  /**
+   * Submit a proposal for review
+   * @param {string} proposalId - Proposal UUID
+   * @returns {Promise<{proposal: object}>}
+   */
+  submitForReview: async (proposalId) => {
+    const { data } = await api.post(`/api/pipeline/proposals/${proposalId}/submit`);
+    return data.data;
+  },
+
+  /**
+   * Approve a proposal
+   * @param {string} proposalId - Proposal UUID
+   * @param {string} [comment] - Optional approval comment
+   * @returns {Promise<{proposal: object}>}
+   */
+  approveProposal: async (proposalId, comment = null) => {
+    const payload = comment ? { comment } : {};
+    const { data } = await api.post(`/api/pipeline/proposals/${proposalId}/approve`, payload);
+    return data.data;
+  },
+
+  /**
+   * Reject a proposal
+   * @param {string} proposalId - Proposal UUID
+   * @param {string} reason - Rejection reason (required)
+   * @returns {Promise<{proposal: object}>}
+   */
+  rejectProposal: async (proposalId, reason) => {
+    const { data } = await api.post(`/api/pipeline/proposals/${proposalId}/reject`, { reason });
+    return data.data;
+  },
+
+  /**
+   * Add a comment to a proposal
+   * @param {string} proposalId - Proposal UUID
+   * @param {object} comment - { content, targetType?, targetId? }
+   * @returns {Promise<{proposal: object}>}
+   */
+  addComment: async (proposalId, comment) => {
+    const { data } = await api.post(`/api/pipeline/proposals/${proposalId}/comments`, comment);
+    return data.data;
+  },
+
+  // -------------------- Stage 3: Brain (Risk Simulation) --------------------
+  
+  /**
+   * Analyze risk for a proposal
+   * @param {string} proposalId - Proposal UUID
+   * @returns {Promise<{analysis: object}>} - Risk analysis with safety score
+   */
+  analyzeRisk: async (proposalId) => {
+    const { data } = await api.post('/api/pipeline/risk', { proposalId });
+    return data.data;
+  },
+
+  // -------------------- Stage 4: Orchestrator (Safe Execution) --------------------
+  
+  /**
+   * Execute a proposal (with optional dry run)
+   * @param {string} proposalId - Proposal UUID
+   * @param {boolean} [dryRun=false] - If true, validates without executing
+   * @returns {Promise<{proposal: object, result: object}>}
+   */
+  executeProposal: async (proposalId, dryRun = false) => {
+    const { data } = await api.post('/api/pipeline/execute', { proposalId, dryRun });
+    return data.data;
+  },
+
+  /**
+   * Rollback a previously executed proposal
+   * @param {string} proposalId - Proposal UUID
+   * @returns {Promise<{proposal: object}>}
+   */
+  rollbackProposal: async (proposalId) => {
+    const { data } = await api.post('/api/pipeline/rollback', { proposalId });
+    return data.data;
+  },
+
+  // -------------------- Audit --------------------
+  
+  /**
+   * Get audit log entries
+   * @param {object} filters - { connectionId?, proposalId?, limit?, offset? }
+   * @returns {Promise<{entries: array}>}
+   */
+  getAuditLog: async (filters = {}) => {
+    const { data } = await api.get('/api/pipeline/audit', { params: filters });
+    return data.data;
+  },
+};
+
 // ==================== LEGACY: Database Operations ====================
 // These require database configured in .env - use connectionAPI for dynamic connections
 
@@ -324,6 +495,9 @@ const allAPIs = {
   // NEW: Dynamic connections
   connection: connectionAPI,
   schema: schemaAPI,
+  
+  // Governance Pipeline (4-stage change management)
+  pipeline: pipelineAPI,
   
   // Operations (work with active connection)
   table: tableAPI,

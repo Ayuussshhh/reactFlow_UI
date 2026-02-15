@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { databaseAPI, tableAPI, foreignKeyAPI, connectionAPI, schemaAPI } from '../lib/api';
+import { databaseAPI, tableAPI, foreignKeyAPI, connectionAPI, schemaAPI, pipelineAPI } from '../lib/api';
 
 /**
  * Main application store
@@ -50,6 +50,19 @@ export const useAppStore = create(
     
     // ==================== Selection State ====================
     selectedObject: null, // { id, type, data }
+    
+    // ==================== Pipeline State (Governance) ====================
+    proposals: [], // All schema change proposals
+    activeProposal: null, // Currently selected/editing proposal
+    riskAnalysis: null, // Latest risk analysis result
+    semanticMap: null, // Digital twin of database schema
+    pipelineLoading: {
+      proposals: false,
+      risk: false,
+      execution: false,
+      mirror: false,
+    },
+    auditLog: [], // Pipeline execution history
     
     // ==================== Notifications ====================
     notifications: [],
@@ -421,6 +434,322 @@ export const useAppStore = create(
     
     setCurrentSQL: (sql) => set({ currentSQL: sql }),
     setActiveView: (view) => set({ activeView: view }),
+
+    // ==================== Pipeline Actions (Governance) ====================
+    
+    // --- Stage 1: Mirror (Introspection) ---
+    buildSemanticMap: async (connectionId) => {
+      const connId = connectionId || get().activeConnection?.id;
+      if (!connId) {
+        get().addNotification('No active connection', 'error');
+        return null;
+      }
+      
+      set((state) => ({ pipelineLoading: { ...state.pipelineLoading, mirror: true } }));
+      try {
+        const result = await pipelineAPI.buildSemanticMap(connId);
+        set({ semanticMap: result.semanticMap });
+        get().addNotification('Semantic map built successfully', 'success');
+        return result.semanticMap;
+      } catch (error) {
+        get().addNotification(`Mirror failed: ${error.message}`, 'error');
+        return null;
+      } finally {
+        set((state) => ({ pipelineLoading: { ...state.pipelineLoading, mirror: false } }));
+      }
+    },
+
+    checkDrift: async (connectionId) => {
+      const connId = connectionId || get().activeConnection?.id;
+      if (!connId) {
+        get().addNotification('No active connection', 'error');
+        return null;
+      }
+      
+      try {
+        const result = await pipelineAPI.checkDrift(connId);
+        if (result.hasDrift) {
+          get().addNotification(`Schema drift detected: ${result.differences.length} changes`, 'warning');
+        }
+        return result;
+      } catch (error) {
+        get().addNotification(`Drift check failed: ${error.message}`, 'error');
+        return null;
+      }
+    },
+
+    // --- Stage 2: Proposal (Glow Layer) ---
+    fetchProposals: async (filters = {}) => {
+      set((state) => ({ pipelineLoading: { ...state.pipelineLoading, proposals: true } }));
+      try {
+        const result = await pipelineAPI.listProposals(filters);
+        set({ proposals: result.proposals || result || [] });
+        return result.proposals || result;
+      } catch (error) {
+        get().addNotification(`Failed to fetch proposals: ${error.message}`, 'error');
+        return [];
+      } finally {
+        set((state) => ({ pipelineLoading: { ...state.pipelineLoading, proposals: false } }));
+      }
+    },
+
+    createProposal: async (title, description) => {
+      const connId = get().activeConnection?.id;
+      if (!connId) {
+        get().addNotification('No active connection', 'error');
+        return null;
+      }
+      
+      try {
+        const result = await pipelineAPI.createProposal({
+          connectionId: connId,
+          title,
+          description,
+        });
+        const proposal = result.proposal || result;
+        set((state) => ({ 
+          proposals: [...state.proposals, proposal],
+          activeProposal: proposal,
+        }));
+        get().addNotification(`Proposal "${title}" created`, 'success');
+        return proposal;
+      } catch (error) {
+        get().addNotification(`Failed to create proposal: ${error.message}`, 'error');
+        return null;
+      }
+    },
+
+    setActiveProposal: (proposal) => {
+      set({ activeProposal: proposal, riskAnalysis: null });
+    },
+
+    addChangeToProposal: async (change) => {
+      const proposal = get().activeProposal;
+      if (!proposal) {
+        get().addNotification('No active proposal', 'error');
+        return false;
+      }
+      
+      try {
+        const result = await pipelineAPI.addChange(proposal.id, change);
+        const updatedProposal = result.proposal || result;
+        set((state) => ({
+          activeProposal: updatedProposal,
+          proposals: state.proposals.map(p => p.id === updatedProposal.id ? updatedProposal : p),
+        }));
+        get().addNotification('Change added to proposal', 'info');
+        return true;
+      } catch (error) {
+        get().addNotification(`Failed to add change: ${error.message}`, 'error');
+        return false;
+      }
+    },
+
+    generateMigration: async (proposalId) => {
+      const pId = proposalId || get().activeProposal?.id;
+      if (!pId) {
+        get().addNotification('No proposal selected', 'error');
+        return null;
+      }
+      
+      try {
+        const result = await pipelineAPI.generateMigration(pId);
+        const updatedProposal = result.proposal || result;
+        set((state) => ({
+          activeProposal: state.activeProposal?.id === pId ? updatedProposal : state.activeProposal,
+          proposals: state.proposals.map(p => p.id === pId ? updatedProposal : p),
+        }));
+        get().addNotification('Migration SQL generated', 'success');
+        return result.migration || updatedProposal.migrationArtifacts;
+      } catch (error) {
+        get().addNotification(`Migration generation failed: ${error.message}`, 'error');
+        return null;
+      }
+    },
+
+    submitProposalForReview: async (proposalId) => {
+      const pId = proposalId || get().activeProposal?.id;
+      if (!pId) {
+        get().addNotification('No proposal selected', 'error');
+        return false;
+      }
+      
+      try {
+        const result = await pipelineAPI.submitForReview(pId);
+        const updatedProposal = result.proposal || result;
+        set((state) => ({
+          activeProposal: state.activeProposal?.id === pId ? updatedProposal : state.activeProposal,
+          proposals: state.proposals.map(p => p.id === pId ? updatedProposal : p),
+        }));
+        get().addNotification('Proposal submitted for review', 'success');
+        return true;
+      } catch (error) {
+        get().addNotification(`Submit failed: ${error.message}`, 'error');
+        return false;
+      }
+    },
+
+    approveProposal: async (proposalId, comment) => {
+      try {
+        const result = await pipelineAPI.approveProposal(proposalId, comment);
+        const updatedProposal = result.proposal || result;
+        set((state) => ({
+          activeProposal: state.activeProposal?.id === proposalId ? updatedProposal : state.activeProposal,
+          proposals: state.proposals.map(p => p.id === proposalId ? updatedProposal : p),
+        }));
+        get().addNotification('Proposal approved', 'success');
+        return true;
+      } catch (error) {
+        get().addNotification(`Approval failed: ${error.message}`, 'error');
+        return false;
+      }
+    },
+
+    rejectProposal: async (proposalId, reason) => {
+      try {
+        const result = await pipelineAPI.rejectProposal(proposalId, reason);
+        const updatedProposal = result.proposal || result;
+        set((state) => ({
+          activeProposal: state.activeProposal?.id === proposalId ? updatedProposal : state.activeProposal,
+          proposals: state.proposals.map(p => p.id === proposalId ? updatedProposal : p),
+        }));
+        get().addNotification('Proposal rejected', 'info');
+        return true;
+      } catch (error) {
+        get().addNotification(`Rejection failed: ${error.message}`, 'error');
+        return false;
+      }
+    },
+
+    // --- Stage 3: Brain (Risk Analysis) ---
+    analyzeRisk: async (proposalId) => {
+      const pId = proposalId || get().activeProposal?.id;
+      if (!pId) {
+        get().addNotification('No proposal selected', 'error');
+        return null;
+      }
+      
+      set((state) => ({ pipelineLoading: { ...state.pipelineLoading, risk: true } }));
+      try {
+        const result = await pipelineAPI.analyzeRisk(pId);
+        const analysis = result.analysis || result;
+        set({ riskAnalysis: analysis });
+        
+        const score = analysis.safetyScore || analysis.safety_score || 0;
+        if (score >= 80) {
+          get().addNotification(`Risk analysis complete: Safe (${score}/100)`, 'success');
+        } else if (score >= 50) {
+          get().addNotification(`Risk analysis complete: Moderate risk (${score}/100)`, 'warning');
+        } else {
+          get().addNotification(`Risk analysis complete: High risk (${score}/100)`, 'error');
+        }
+        return analysis;
+      } catch (error) {
+        get().addNotification(`Risk analysis failed: ${error.message}`, 'error');
+        return null;
+      } finally {
+        set((state) => ({ pipelineLoading: { ...state.pipelineLoading, risk: false } }));
+      }
+    },
+
+    // --- Stage 4: Orchestrator (Safe Execution) ---
+    executeProposal: async (proposalId, dryRun = false) => {
+      const pId = proposalId || get().activeProposal?.id;
+      if (!pId) {
+        get().addNotification('No proposal selected', 'error');
+        return null;
+      }
+      
+      set((state) => ({ pipelineLoading: { ...state.pipelineLoading, execution: true } }));
+      try {
+        const result = await pipelineAPI.executeProposal(pId, dryRun);
+        const updatedProposal = result.proposal || result;
+        
+        set((state) => ({
+          activeProposal: state.activeProposal?.id === pId ? updatedProposal : state.activeProposal,
+          proposals: state.proposals.map(p => p.id === pId ? updatedProposal : p),
+        }));
+        
+        if (dryRun) {
+          get().addNotification('Dry run completed successfully', 'success');
+        } else {
+          get().addNotification('Schema changes applied successfully!', 'success');
+          // Refresh schema after execution
+          const connId = get().activeConnection?.id;
+          if (connId) {
+            await get().introspectSchema(connId);
+          }
+        }
+        return result;
+      } catch (error) {
+        get().addNotification(`Execution failed: ${error.message}`, 'error');
+        return null;
+      } finally {
+        set((state) => ({ pipelineLoading: { ...state.pipelineLoading, execution: false } }));
+      }
+    },
+
+    rollbackProposal: async (proposalId) => {
+      const pId = proposalId || get().activeProposal?.id;
+      if (!pId) {
+        get().addNotification('No proposal selected', 'error');
+        return false;
+      }
+      
+      set((state) => ({ pipelineLoading: { ...state.pipelineLoading, execution: true } }));
+      try {
+        const result = await pipelineAPI.rollbackProposal(pId);
+        const updatedProposal = result.proposal || result;
+        
+        set((state) => ({
+          activeProposal: state.activeProposal?.id === pId ? updatedProposal : state.activeProposal,
+          proposals: state.proposals.map(p => p.id === pId ? updatedProposal : p),
+        }));
+        
+        get().addNotification('Rollback completed successfully', 'success');
+        // Refresh schema after rollback
+        const connId = get().activeConnection?.id;
+        if (connId) {
+          await get().introspectSchema(connId);
+        }
+        return true;
+      } catch (error) {
+        get().addNotification(`Rollback failed: ${error.message}`, 'error');
+        return false;
+      } finally {
+        set((state) => ({ pipelineLoading: { ...state.pipelineLoading, execution: false } }));
+      }
+    },
+
+    // --- Audit ---
+    fetchAuditLog: async (filters = {}) => {
+      try {
+        const result = await pipelineAPI.getAuditLog(filters);
+        const entries = result.entries || result || [];
+        set({ auditLog: entries });
+        return entries;
+      } catch (error) {
+        get().addNotification(`Failed to fetch audit log: ${error.message}`, 'error');
+        return [];
+      }
+    },
+
+    // --- Pipeline Reset ---
+    clearPipelineState: () => {
+      set({
+        proposals: [],
+        activeProposal: null,
+        riskAnalysis: null,
+        semanticMap: null,
+        auditLog: [],
+        pipelineLoading: {
+          proposals: false,
+          risk: false,
+          execution: false,
+          mirror: false,
+        },
+      });
+    },
 
     // Notification actions
     addNotification: (message, type = 'info') => {

@@ -20,3 +20,6 @@ export * from './dialogs';
 
 // UI Primitives
 export * from './ui';
+
+// Pipeline Components (Governance)
+export * from './pipeline';
