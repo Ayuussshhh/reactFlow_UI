@@ -1,3 +1,6 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Transpile tldraw packages for proper bundling
@@ -24,7 +27,6 @@ const nextConfig = {
         '@tldraw/validate': require.resolve('@tldraw/validate'),
         '@tldraw/tlschema': require.resolve('@tldraw/tlschema'),
         '@tldraw/editor': require.resolve('@tldraw/editor'),
-        'tldraw': require.resolve('tldraw'),
       };
     }
     return config;
