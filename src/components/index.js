@@ -12,14 +12,5 @@ export * from './layout';
 // Panel Components
 export * from './panels';
 
-// Command Components
-export * from './command';
-
 // Dialog Components
 export * from './dialogs';
-
-// UI Primitives
-export * from './ui';
-
-// Pipeline Components (Governance)
-export * from './pipeline';

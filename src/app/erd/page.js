@@ -1,13 +1,9 @@
 /**
- * ERD Page - Database Canvas Workspace
- * Object-First visual database design interface
- * Inspired by Figma, Notion, and Airtable
+ * ERD Page - Redirects to Dashboard
  */
 
-'use client';
+import { redirect } from 'next/navigation';
 
-import { DatabaseView } from '../../views';
-
-export default function DatabaseManager() {
-  return <DatabaseView />;
+export default function ERDPage() {
+  redirect('/dashboard');
 }

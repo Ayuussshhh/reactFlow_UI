@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Design Tokens ===== */
+:root {
+  /* Primary - Indigo */
+  --color-primary-50: 238 242 255;
+  --color-primary-500: 99 102 241;
+  --color-primary-600: 79 70 229;
+  --color-primary-700: 67 56 202;
+  
+  /* Canvas */
+  --canvas-bg: #fafbfc;
+  --canvas-grid: #e5e7eb;
+  --canvas-grid-bold: #d1d5db;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Dark mode support */
+.dark {
+  --canvas-bg: #18181b;
+  --canvas-grid: #27272a;
+  --canvas-grid-bold: #3f3f46;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -10,49 +37,233 @@
   }
 
   body {
-    @apply bg-white text-gray-900;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    @apply bg-slate-50 text-slate-900;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * {
+    @apply border-slate-200;
   }
 }
 
 @layer components {
-  .bg-canvas {
-    @apply bg-gray-50;
+  /* Button Variants */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-primary {
+    @apply btn bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500;
+    @apply shadow-sm hover:shadow-md;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-slate-500;
+    @apply shadow-sm hover:shadow-md;
+  }
+  
+  .btn-ghost {
+    @apply btn text-slate-600 hover:text-slate-900 hover:bg-slate-100;
+  }
+  
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+  
+  /* Input */
+  .input {
+    @apply w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg;
+    @apply placeholder:text-slate-400;
+    @apply focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500;
+    @apply transition-all duration-150;
+  }
+  
+  .input-error {
+    @apply border-red-500 focus:ring-red-500/20 focus:border-red-500;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
+  }
+  
+  .badge-primary {
+    @apply badge bg-indigo-100 text-indigo-700;
+  }
+  
+  .badge-success {
+    @apply badge bg-emerald-100 text-emerald-700;
+  }
+  
+  .badge-warning {
+    @apply badge bg-amber-100 text-amber-700;
+  }
+  
+  .badge-danger {
+    @apply badge bg-red-100 text-red-700;
+  }
+  
+  .badge-neutral {
+    @apply badge bg-slate-100 text-slate-700;
   }
 }
 
-/* Scrollbar */
+/* ===== Custom Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  @apply bg-slate-300 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  @apply bg-slate-400;
 }
 
-/* tldraw overrides */
-.tl-container {
-  background: #fafafa !important;
+/* Thin scrollbar variant */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
 }
 
-.tl-background {
-  background-color: #fafafa !important;
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-slate-200;
 }
 
-/* Clean up tldraw UI */
-.tlui-style-panel__wrapper {
-  border-radius: 12px;
+/* ===== React Flow Customization ===== */
+.react-flow__background {
+  background-color: var(--canvas-bg) !important;
 }
 
-.tlui-toolbar {
-  border-radius: 12px;
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.react-flow__controls {
+  @apply shadow-lg rounded-xl border border-slate-200 overflow-hidden bg-white;
+}
+
+.react-flow__controls-button {
+  @apply border-slate-200 bg-white hover:bg-slate-50 text-slate-600;
+  @apply transition-colors;
+}
+
+.react-flow__controls-button:hover {
+  @apply bg-slate-100;
+}
+
+.react-flow__controls-button svg {
+  @apply fill-slate-600;
+}
+
+.react-flow__minimap {
+  @apply rounded-xl border border-slate-200 shadow-lg overflow-hidden bg-white/90 backdrop-blur-sm;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(99, 102, 241, 0.1);
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+/* ===== Edge Styles ===== */
+.react-flow__edge-path {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3;
+}
+
+/* ===== Handle Styles ===== */
+.react-flow__handle {
+  @apply transition-all duration-150;
+}
+
+.react-flow__handle:hover {
+  @apply scale-125;
+}
+
+/* ===== Selection Box ===== */
+.react-flow__selection {
+  @apply bg-indigo-500/10 border border-indigo-500/50;
+}
+
+/* ===== Animations ===== */
+@keyframes pulse-soft {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* ===== Canvas Background Pattern ===== */
+.canvas-bg-pattern {
+  background-color: var(--canvas-bg);
+  background-image: 
+    radial-gradient(circle, var(--canvas-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
