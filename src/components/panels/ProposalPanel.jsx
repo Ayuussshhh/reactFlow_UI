@@ -15,7 +15,7 @@ import {
   ClockIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 
 // Change type badges
@@ -60,9 +60,14 @@ export default function ProposalPanel() {
   const { user } = useAuthStore();
   const [proposalTitle, setProposalTitle] = useState('');
   const [proposalDescription, setProposalDescription] = useState('');
+  const [mounted, setMounted] = useState(false);
 
-  const canApprove = user?.role === 'Admin' || user?.role === 'Developer';
-  const canExecute = user?.role === 'Admin';
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const canApprove = mounted && user && (user.role === 'Admin' || user.role === 'Developer');
+  const canExecute = mounted && user && user.role === 'Admin';
 
   const handleCreateProposal = () => {
     // TODO: Create proposal via API

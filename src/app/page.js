@@ -5,6 +5,8 @@
 
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +18,7 @@ import {
   UserGroupIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
+import { useAuthStore } from '../store/store';
 
 const features = [
   {
@@ -51,6 +54,16 @@ const features = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}

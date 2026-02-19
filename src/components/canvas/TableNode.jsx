@@ -4,9 +4,9 @@
  * TableNode - Professional database table visualization
  * Inspired by dbdiagram.io, Prisma Studio, and modern ERD tools
  */
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { useSchemaStore, useProposalStore } from '../../store/store';
+import { useSchemaStore, useProposalStore, useImpactStore, useUIStore } from '../../store/store';
 import clsx from 'clsx';
 
 // Type to icon mapping (using simple Unicode icons for cleaner look)
@@ -144,6 +144,16 @@ const TableNode = memo(({ data, selected }) => {
   const { table, isProposed, proposalType } = data;
   const devMode = useSchemaStore((state) => state.devMode);
   
+  // Impact analysis store
+  const highlightedNodes = useImpactStore((state) => state.highlightedNodes);
+  const setSelectedObject = useImpactStore((state) => state.setSelectedObject);
+  const setImpactPanelOpen = useUIStore((state) => state.setImpactPanelOpen);
+  
+  // Check if this table is impacted (in blast radius)
+  const isImpacted = useMemo(() => {
+    return highlightedNodes.includes(table.name);
+  }, [highlightedNodes, table.name]);
+  
   // Select raw data for stable reference
   const activeProposal = useProposalStore((state) => state.activeProposal);
   const draftChanges = useProposalStore((state) => state.draftChanges);
@@ -165,9 +175,23 @@ const TableNode = memo(({ data, selected }) => {
       regularColumns: columns.filter((c) => !c.isPrimaryKey && !c.isForeignKey),
     };
   }, [table.columns]);
+  
+  // Handle right-click to analyze impact
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+    setSelectedObject({
+      schema: table.schema || 'public',
+      table: table.name,
+    });
+    setImpactPanelOpen(true);
+  }, [table.name, table.schema, setSelectedObject, setImpactPanelOpen]);
 
   // Get status styling
   const statusConfig = useMemo(() => {
+    // Impact highlighting takes precedence
+    if (isImpacted) {
+      return { borderColor: 'border-orange-400', headerBg: 'bg-orange-500', glow: 'shadow-orange-500/30', isImpact: true };
+    }
     if (proposalType === 'new') {
       return { borderColor: 'border-emerald-400', headerBg: 'bg-emerald-500', glow: 'shadow-emerald-500/20' };
     }
@@ -178,10 +202,11 @@ const TableNode = memo(({ data, selected }) => {
       return { borderColor: 'border-red-400', headerBg: 'bg-red-500', glow: 'shadow-red-500/20', opacity: 'opacity-60' };
     }
     return { borderColor: selected ? 'border-indigo-400' : 'border-slate-200', headerBg: 'bg-indigo-500', glow: '' };
-  }, [proposalType, tableChanges.length, selected]);
+  }, [proposalType, tableChanges.length, selected, isImpacted]);
 
   return (
     <div
+      onContextMenu={handleContextMenu}
       className={clsx(
         'table-node-pro group',
         'bg-white rounded-lg border-2 overflow-hidden',
@@ -189,10 +214,21 @@ const TableNode = memo(({ data, selected }) => {
         statusConfig.borderColor,
         statusConfig.glow && `shadow-xl ${statusConfig.glow}`,
         statusConfig.opacity,
-        selected && 'ring-2 ring-indigo-400 ring-offset-2'
+        selected && 'ring-2 ring-indigo-400 ring-offset-2',
+        isImpacted && 'animate-pulse ring-2 ring-orange-400'
       )}
       style={{ minWidth: 260, maxWidth: 320 }}
+      title="Right-click to analyze impact"
     >
+      {/* Impact Badge */}
+      {isImpacted && (
+        <div className="absolute -top-2 -right-2 z-10">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white text-xs font-bold shadow-lg">
+            ⚡
+          </span>
+        </div>
+      )}
+      
       {/* Header */}
       <div className={clsx('px-3 py-2.5', statusConfig.headerBg)}>
         <div className="flex items-center justify-between">

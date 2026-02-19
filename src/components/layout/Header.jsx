@@ -3,6 +3,7 @@
 /**
  * Header - Professional top navigation bar
  */
+import { useState, useEffect } from 'react';
 import { useAuthStore, useConnectionStore, useUIStore, useSchemaStore } from '../../store/store';
 import {
   Bars3Icon,
@@ -13,15 +14,22 @@ import {
   Cog6ToothIcon,
   ServerStackIcon,
   SignalIcon,
+  ShieldExclamationIcon,
+  DocumentMagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Switch from '@radix-ui/react-switch';
 
 export default function Header() {
+  const [mounted, setMounted] = useState(false);
   const { user, logout, isAuthenticated } = useAuthStore();
   const { activeConnection, disconnect } = useConnectionStore();
   const { toggleSidebar, setConnectDialogOpen } = useUIStore();
   const { devMode, toggleDevMode, tables } = useSchemaStore();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const getRoleBadgeClass = (role) => {
     switch (role) {
@@ -97,6 +105,17 @@ export default function Header() {
 
       {/* Right */}
       <div className="flex items-center gap-2">
+        {/* Impact Analysis Button */}
+        {activeConnection && (
+          <button
+            onClick={() => useUIStore.getState().setImpactPanelOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
+          >
+            <ShieldExclamationIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Impact Analysis</span>
+          </button>
+        )}
+
         {/* Dev Mode Toggle */}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
           <CodeBracketIcon className="w-4 h-4 text-slate-500" />
@@ -122,7 +141,7 @@ export default function Header() {
         )}
 
         {/* User Menu */}
-        {isAuthenticated && user && (
+        {mounted && isAuthenticated && user && (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors ml-2">

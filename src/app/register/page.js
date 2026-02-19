@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Login Page
+ * Register Page
  */
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,14 +9,15 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/store';
 import { authAPI } from '../../lib/client';
-import { BoltIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { BoltIcon, EnvelopeIcon, LockClosedIcon, UserIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const { setAuth, setLoading, isLoading, isAuthenticated } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
 
   // Redirect if already authenticated
@@ -32,12 +33,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await authAPI.login(email, password);
+      const result = await authAPI.register(email, password, name);
       setAuth(result.user, result.tokens.accessToken, result.tokens.refreshToken);
-      toast.success('Welcome back!');
+      toast.success('Account created successfully!');
       router.push('/dashboard');
     } catch (err) {
-      setError(err.message || 'Invalid credentials');
+      setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -61,8 +62,8 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-neutral-900 mb-2">Welcome back</h1>
-            <p className="text-neutral-600">Sign in to your account</p>
+            <h1 className="text-2xl font-bold text-neutral-900 mb-2">Create your account</h1>
+            <p className="text-neutral-600">Join SchemaFlow and start managing your database</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -71,6 +72,23 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Full Name
+              </label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  required
+                  className="input pl-10"
+                />
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
@@ -101,9 +119,13 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={8}
                   className="input pl-10"
                 />
               </div>
+              <p className="mt-1.5 text-xs text-neutral-500">
+                Must be at least 8 characters long
+              </p>
             </div>
 
             <button
@@ -111,24 +133,24 @@ export default function LoginPage() {
               disabled={isLoading}
               className="btn-primary w-full py-3"
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? 'Creating account...' : 'Create account'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-neutral-600">
-              Don't have an account?{' '}
-              <Link href="/register" className="text-indigo-600 font-medium hover:text-indigo-700">
-                Sign up
+              Already have an account?{' '}
+              <Link href="/login" className="text-indigo-600 font-medium hover:text-indigo-700">
+                Sign in
               </Link>
             </p>
           </div>
         </div>
 
-        {/* Demo credentials */}
+        {/* Info */}
         <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
           <p className="text-sm text-indigo-700 text-center">
-            <strong>Demo:</strong> admin@schemaflow.local / admin123
+            <strong>Note:</strong> New accounts are created with <span className="font-semibold">Viewer</span> role. Contact an admin for role upgrades.
           </p>
         </div>
       </motion.div>

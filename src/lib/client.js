@@ -39,8 +39,9 @@ api.interceptors.response.use(
             refreshToken,
           });
           
-          setAuth(data.data.user, data.data.accessToken, data.data.refreshToken);
-          originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
+          // Auth endpoints return { success, user, tokens } directly
+          setAuth(data.user, data.tokens.accessToken, data.tokens.refreshToken);
+          originalRequest.headers.Authorization = `Bearer ${data.tokens.accessToken}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
@@ -56,27 +57,27 @@ api.interceptors.response.use(
 export const authAPI = {
   login: async (email, password) => {
     const { data } = await api.post('/api/auth/login', { email, password });
-    return data.data;
+    return data; // Auth endpoints don't wrap in data field
   },
 
   register: async (email, password, name) => {
     const { data } = await api.post('/api/auth/register', { email, password, name });
-    return data.data;
+    return data; // Auth endpoints don't wrap in data field
   },
 
   me: async () => {
     const { data } = await api.get('/api/auth/me');
-    return data.data;
+    return data; // Returns { success, user }
   },
 
   refresh: async (refreshToken) => {
     const { data } = await api.post('/api/auth/refresh', { refreshToken });
-    return data.data;
+    return data; // Auth endpoints don't wrap in data field
   },
 
   listUsers: async () => {
     const { data } = await api.get('/api/auth/users');
-    return data.data;
+    return data; // Returns { success, users }
   },
 
   updateRole: async (userId, role) => {
@@ -185,6 +186,70 @@ export const pipelineAPI = {
   generateMigration: async (id) => {
     const { data } = await api.post(`/api/pipeline/proposals/${id}/migration`);
     return data.data;
+  },
+};
+
+// ==================== Snapshot & Impact Analysis API ====================
+export const snapshotAPI = {
+  // Create a new schema snapshot
+  create: async (connectionId, label) => {
+    const { data } = await api.post(`/api/connections/${connectionId}/snapshots`, { label });
+    return data.snapshot;
+  },
+
+  // List all snapshots for a connection
+  list: async (connectionId) => {
+    const { data } = await api.get(`/api/connections/${connectionId}/snapshots`);
+    return data.snapshots || [];
+  },
+
+  // Get the latest snapshot
+  getLatest: async (connectionId) => {
+    const { data } = await api.get(`/api/connections/${connectionId}/snapshots/latest`);
+    return data.snapshot;
+  },
+
+  // Get a specific snapshot version
+  getVersion: async (connectionId, version) => {
+    const { data } = await api.get(`/api/connections/${connectionId}/snapshots/${version}`);
+    return data.snapshot;
+  },
+
+  // Compare two snapshot versions and get the diff
+  diff: async (connectionId, fromVersion, toVersion) => {
+    const params = new URLSearchParams();
+    if (fromVersion) params.set('fromVersion', fromVersion);
+    if (toVersion) params.set('toVersion', toVersion);
+    const { data } = await api.get(`/api/connections/${connectionId}/snapshots/diff?${params}`);
+    return { diff: data.diff, rulesResult: data.rulesResult };
+  },
+
+  // Set a snapshot as the baseline (production reference)
+  setBaseline: async (connectionId, snapshotId) => {
+    const { data } = await api.post(`/api/connections/${connectionId}/snapshots/${snapshotId}/baseline`);
+    return data;
+  },
+
+  // Analyze blast radius for a table or column
+  analyzeBlastRadius: async (connectionId, schema, table, column) => {
+    const { data } = await api.post(`/api/connections/${connectionId}/blast-radius`, {
+      schema,
+      table,
+      column,
+    });
+    return data.blastRadius;
+  },
+
+  // Check for schema drift from baseline
+  checkDrift: async (connectionId) => {
+    const { data } = await api.get(`/api/connections/${connectionId}/schema-drift`);
+    return { diff: data.diff, rulesResult: data.rulesResult };
+  },
+
+  // Get all governance rules
+  getRules: async () => {
+    const { data } = await api.get('/api/rules');
+    return data.rules || [];
   },
 };
 

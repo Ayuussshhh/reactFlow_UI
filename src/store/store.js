@@ -259,6 +259,7 @@ export const useUIStore = create((set) => ({
   proposalPanelOpen: false,
   commandPaletteOpen: false,
   connectDialogOpen: false,
+  impactPanelOpen: false,
   theme: 'light',
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -270,6 +271,57 @@ export const useUIStore = create((set) => ({
 
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setConnectDialogOpen: (open) => set({ connectDialogOpen: open }),
+  setImpactPanelOpen: (open) => set({ impactPanelOpen: open }),
 
   setTheme: (theme) => set({ theme }),
 }));
+
+// ==================== Impact Analysis Store ====================
+export const useImpactStore = create(
+  subscribeWithSelector((set, get) => ({
+    // Snapshots
+    snapshots: [],
+    latestSnapshot: null,
+    baselineSnapshot: null,
+    isLoadingSnapshots: false,
+
+    // Diff results
+    currentDiff: null,
+    rulesResult: null,
+
+    // Blast radius
+    selectedObject: null, // { schema, table, column? }
+    blastRadius: null,
+    highlightedNodes: [], // Node IDs to highlight on canvas
+    highlightedEdges: [], // Edge IDs to highlight on canvas
+
+    // Actions
+    setSnapshots: (snapshots) => set({ snapshots }),
+    setLatestSnapshot: (snapshot) => set({ latestSnapshot: snapshot }),
+    setBaselineSnapshot: (snapshot) => set({ baselineSnapshot: snapshot }),
+    setLoadingSnapshots: (loading) => set({ isLoadingSnapshots: loading }),
+
+    setDiff: (diff, rulesResult) => set({ currentDiff: diff, rulesResult }),
+    clearDiff: () => set({ currentDiff: null, rulesResult: null }),
+
+    setSelectedObject: (obj) => set({ selectedObject: obj }),
+    setBlastRadius: (blastRadius) => {
+      // Extract impacted table names for highlighting
+      const highlightedNodes = blastRadius?.impacted
+        ?.filter((i) => i.objectType === 'table')
+        ?.map((i) => i.path.split('.').pop()) || [];
+      
+      set({ blastRadius, highlightedNodes });
+    },
+    clearBlastRadius: () => set({ 
+      blastRadius: null, 
+      highlightedNodes: [], 
+      highlightedEdges: [],
+      selectedObject: null 
+    }),
+
+    // Highlight specific nodes (for blast radius visualization)
+    setHighlightedNodes: (nodeIds) => set({ highlightedNodes: nodeIds }),
+    setHighlightedEdges: (edgeIds) => set({ highlightedEdges: edgeIds }),
+  }))
+);

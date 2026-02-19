@@ -3,7 +3,8 @@
 /**
  * Sidebar - Professional left navigation and table explorer
  */
-import { useUIStore, useSchemaStore, useCanvasStore, useProposalStore } from '../../store/store';
+import { useUIStore, useSchemaStore, useCanvasStore, useProposalStore, useAuthStore } from '../../store/store';
+import { ROLES } from '../auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TableCellsIcon,
@@ -14,7 +15,7 @@ import {
   ChevronRightIcon,
   KeyIcon,
 } from '@heroicons/react/24/outline';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import clsx from 'clsx';
 
 export default function Sidebar() {
@@ -22,8 +23,18 @@ export default function Sidebar() {
   const { tables, foreignKeys } = useSchemaStore();
   const { setSelectedNode, nodes } = useCanvasStore();
   const { draftChanges } = useProposalStore();
+  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSchemas, setExpandedSchemas] = useState(['public']);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Role-based permissions
+  const canModifySchema = mounted && user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPER);
+  const canApproveChanges = mounted && user && user.role === ROLES.ADMIN;
 
   // Group tables by schema
   const tablesBySchema = useMemo(() => {
@@ -103,10 +114,17 @@ export default function Sidebar() {
 
           {/* Actions */}
           <div className="p-3 flex gap-2 border-b border-slate-100 bg-slate-50/50">
-            <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm">
-              <PlusIcon className="w-3.5 h-3.5" />
-              New Table
-            </button>
+            {canModifySchema ? (
+              <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm">
+                <PlusIcon className="w-3.5 h-3.5" />
+                New Table
+              </button>
+            ) : (
+              <div className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-slate-400 bg-slate-100 border border-slate-200 rounded-lg cursor-not-allowed" title="Viewers cannot create tables">
+                <PlusIcon className="w-3.5 h-3.5" />
+                View Only
+              </div>
+            )}
             <button
               onClick={() => setProposalPanelOpen(true)}
               className="relative flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors shadow-sm"

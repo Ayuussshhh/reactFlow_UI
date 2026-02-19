@@ -2,6 +2,7 @@
 
 /**
  * Dashboard - Main workspace with React Flow canvas
+ * Protected route - requires authentication
  */
 import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
@@ -9,8 +10,9 @@ import { ReactFlowProvider } from '@xyflow/react';
 
 import { Header, Sidebar } from '../../components/layout';
 import { SchemaCanvas } from '../../components/canvas';
-import { ProposalPanel } from '../../components/panels';
+import { ProposalPanel, ImpactPanel } from '../../components/panels';
 import { ConnectDialog } from '../../components/dialogs';
+import { AuthGuard } from '../../components/auth';
 import { useAuthStore, useConnectionStore } from '../../store/store';
 
 export default function DashboardPage() {
@@ -18,46 +20,49 @@ export default function DashboardPage() {
   const { activeConnection } = useConnectionStore();
 
   return (
-    <ReactFlowProvider>
-      <div className="h-screen flex flex-col overflow-hidden bg-neutral-50">
-        {/* Header */}
-        <Header />
+    <AuthGuard>
+      <ReactFlowProvider>
+        <div className="h-screen flex flex-col overflow-hidden bg-neutral-50">
+          {/* Header */}
+          <Header />
 
-        {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar */}
-          <Sidebar />
+          {/* Main Content */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Sidebar */}
+            <Sidebar />
 
-          {/* Canvas Area */}
-          <main className="flex-1 relative overflow-hidden">
-            {activeConnection ? (
-              <SchemaCanvas />
-            ) : (
-              <EmptyState />
-            )}
-          </main>
+            {/* Canvas Area */}
+            <main className="flex-1 relative overflow-hidden">
+              {activeConnection ? (
+                <SchemaCanvas />
+              ) : (
+                <EmptyState />
+              )}
+            </main>
+          </div>
+
+          {/* Panels */}
+          <ProposalPanel />
+          <ImpactPanel />
+
+          {/* Dialogs */}
+          <ConnectDialog />
+
+          {/* Toast notifications */}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              className: 'text-sm',
+              style: {
+                background: '#18181b',
+                color: '#fff',
+                borderRadius: '8px',
+              },
+            }}
+          />
         </div>
-
-        {/* Panels */}
-        <ProposalPanel />
-
-        {/* Dialogs */}
-        <ConnectDialog />
-
-        {/* Toast notifications */}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            className: 'text-sm',
-            style: {
-              background: '#18181b',
-              color: '#fff',
-              borderRadius: '8px',
-            },
-          }}
-        />
-      </div>
-    </ReactFlowProvider>
+      </ReactFlowProvider>
+    </AuthGuard>
   );
 }
 
