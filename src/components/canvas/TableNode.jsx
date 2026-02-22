@@ -11,21 +11,32 @@ import clsx from 'clsx';
 
 // Type to icon mapping (using simple Unicode icons for cleaner look)
 const TYPE_CONFIG = {
-  // Numeric types
+  // Numeric types - Integers
   serial: { icon: '#', color: 'blue', label: 'Serial' },
+  serial2: { icon: '#', color: 'blue', label: 'SmallSerial' },
+  serial4: { icon: '#', color: 'blue', label: 'Serial' },
+  serial8: { icon: '#', color: 'blue', label: 'BigSerial' },
+  smallserial: { icon: '#', color: 'blue', label: 'SmallSerial' },
   bigserial: { icon: '#', color: 'blue', label: 'BigSerial' },
+  
   integer: { icon: '#', color: 'blue', label: 'Int' },
+  int: { icon: '#', color: 'blue', label: 'Int' },
+  int2: { icon: '#', color: 'blue', label: 'SmallInt' },
   int4: { icon: '#', color: 'blue', label: 'Int' },
   int8: { icon: '#', color: 'blue', label: 'BigInt' },
-  bigint: { icon: '#', color: 'blue', label: 'BigInt' },
+  ' integer': { icon: '#', color: 'blue', label: 'Int' },
   smallint: { icon: '#', color: 'blue', label: 'SmallInt' },
-  int2: { icon: '#', color: 'blue', label: 'SmallInt' },
+  bigint: { icon: '#', color: 'blue', label: 'BigInt' },
+  
+  // Numeric types - Decimals/Floats
   numeric: { icon: '#', color: 'cyan', label: 'Decimal' },
   decimal: { icon: '#', color: 'cyan', label: 'Decimal' },
+  number: { icon: '#', color: 'cyan', label: 'Decimal' },
   real: { icon: '#', color: 'cyan', label: 'Float' },
   float4: { icon: '#', color: 'cyan', label: 'Float' },
+  float: { icon: '#', color: 'cyan', label: 'Float' },
   float8: { icon: '#', color: 'cyan', label: 'Double' },
-  double: { icon: '#', color: 'cyan', label: 'Double' },
+  'double precision': { icon: '#', color: 'cyan', label: 'Double' },
   
   // Text types
   text: { icon: 'T', color: 'green', label: 'Text' },
@@ -33,7 +44,9 @@ const TYPE_CONFIG = {
   'character varying': { icon: 'T', color: 'green', label: 'Varchar' },
   char: { icon: 'T', color: 'green', label: 'Char' },
   character: { icon: 'T', color: 'green', label: 'Char' },
+  bpchar: { icon: 'T', color: 'green', label: 'Char' },
   citext: { icon: 'T', color: 'green', label: 'CIText' },
+  string: { icon: 'T', color: 'green', label: 'String' },
   
   // Boolean
   boolean: { icon: '✓', color: 'purple', label: 'Bool' },
@@ -44,8 +57,12 @@ const TYPE_CONFIG = {
   'timestamp with time zone': { icon: '◷', color: 'amber', label: 'TimestampTZ' },
   'timestamp without time zone': { icon: '◷', color: 'amber', label: 'Timestamp' },
   timestamptz: { icon: '◷', color: 'amber', label: 'TimestampTZ' },
+  'timestamp tz': { icon: '◷', color: 'amber', label: 'TimestampTZ' },
   date: { icon: '◷', color: 'amber', label: 'Date' },
   time: { icon: '◷', color: 'amber', label: 'Time' },
+  timetz: { icon: '◷', color: 'amber', label: 'TimeTZ' },
+  'time with time zone': { icon: '◷', color: 'amber', label: 'TimeTZ' },
+  'time without time zone': { icon: '◷', color: 'amber', label: 'Time' },
   interval: { icon: '◷', color: 'amber', label: 'Interval' },
   
   // Special types
@@ -53,23 +70,85 @@ const TYPE_CONFIG = {
   json: { icon: '{ }', color: 'orange', label: 'JSON' },
   jsonb: { icon: '{ }', color: 'orange', label: 'JSONB' },
   bytea: { icon: '⬡', color: 'slate', label: 'Bytes' },
+  bytes: { icon: '⬡', color: 'slate', label: 'Bytes' },
   inet: { icon: '@', color: 'teal', label: 'IP' },
   macaddr: { icon: '@', color: 'teal', label: 'MAC' },
-  array: { icon: '[ ]', color: 'indigo', label: 'Array' },
+  cidr: { icon: '@', color: 'teal', label: 'CIDR' },
+  
+  // Range types
+  int4range: { icon: '[]', color: 'indigo', label: 'IntRange' },
+  int8range: { icon: '[]', color: 'indigo', label: 'BigIntRange' },
+  numrange: { icon: '[]', color: 'indigo', label: 'NumRange' },
+  tsrange: { icon: '[]', color: 'indigo', label: 'TsRange' },
+  tstzrange: { icon: '[]', color: 'indigo', label: 'TsTzRange' },
+  daterange: { icon: '[]', color: 'indigo', label: 'DateRange' },
+  
+  // Array types
+  array: { icon: '[]', color: 'indigo', label: 'Array' },
+  'integer[]': { icon: '[]', color: 'indigo', label: 'Int[]' },
+  'text[]': { icon: '[]', color: 'indigo', label: 'Text[]' },
+  'varchar[]': { icon: '[]', color: 'indigo', label: 'Varchar[]' },
   
   // Default
   default: { icon: '?', color: 'slate', label: 'Unknown' },
 };
 
-// Get type configuration
+// Get type configuration with improved matching
 const getTypeConfig = (type) => {
-  const t = (type || '').toLowerCase().trim();
+  if (!type) return TYPE_CONFIG.default;
+  
+  const t = type.toLowerCase().trim();
   
   // Check for exact match first
   if (TYPE_CONFIG[t]) return TYPE_CONFIG[t];
   
-  // Check for partial matches
-  for (const [key, config] of Object.entries(TYPE_CONFIG)) {
+  // Check for array types (e.g., integer[], text[])
+  if (t.includes('[]')) {
+    const baseType = t.replace('[]', '').trim();
+    if (TYPE_CONFIG[baseType]) {
+      const base = TYPE_CONFIG[baseType];
+      return { icon: '[]', color: base.color, label: `${base.label}[]` };
+    }
+    return { icon: '[]', color: 'indigo', label: 'Array' };
+  }
+  
+  // Check for range types
+  if (t.includes('range')) {
+    if (TYPE_CONFIG[t]) return TYPE_CONFIG[t];
+    return { icon: '[]', color: 'indigo', label: 'Range' };
+  }
+  
+  // Check for numeric with precision (e.g., numeric(10,2))
+  if (t.includes('numeric') || t.includes('decimal')) {
+    return { icon: '#', color: 'cyan', label: 'Decimal' };
+  }
+  
+  // Check for character types with length (e.g., varchar(255), char(50))
+  if (t.includes('varchar') || t.includes('char')) {
+    return { icon: 'T', color: 'green', label: 'Varchar' };
+  }
+  
+  // Check for partial matches with better logic
+  const partialMatches = [
+    { key: 'timestamp', config: TYPE_CONFIG.timestamp },
+    { key: 'date', config: TYPE_CONFIG.date },
+    { key: 'time', config: TYPE_CONFIG.time },
+    { key: 'int', config: TYPE_CONFIG.integer },
+    { key: 'serial', config: TYPE_CONFIG.serial },
+    { key: 'char', config: TYPE_CONFIG.char },
+    { key: 'text', config: TYPE_CONFIG.text },
+    { key: 'bool', config: TYPE_CONFIG.boolean },
+    { key: 'json', config: TYPE_CONFIG.json },
+    { key: 'uuid', config: TYPE_CONFIG.uuid },
+    { key: 'inet', config: TYPE_CONFIG.inet },
+    { key: 'mac', config: TYPE_CONFIG.macaddr },
+    { key: 'byte', config: TYPE_CONFIG.bytea },
+    { key: 'numeric', config: TYPE_CONFIG.numeric },
+    { key: 'float', config: TYPE_CONFIG.real },
+    { key: 'double', config: TYPE_CONFIG['double precision'] },
+  ];
+  
+  for (const { key, config } of partialMatches) {
     if (t.includes(key)) return config;
   }
   

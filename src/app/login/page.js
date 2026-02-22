@@ -22,7 +22,7 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/dashboard');
+      router.replace('/projects');
     }
   }, [isAuthenticated, router]);
 
@@ -35,7 +35,7 @@ export default function LoginPage() {
       const result = await authAPI.login(email, password);
       setAuth(result.user, result.tokens.accessToken, result.tokens.refreshToken);
       toast.success('Welcome back!');
-      router.push('/dashboard');
+      router.push('/projects');
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
