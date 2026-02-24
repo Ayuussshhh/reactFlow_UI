@@ -22,7 +22,7 @@ import {
   BeakerIcon,
 } from '@heroicons/react/24/outline';
 import { useUIStore, useImpactStore, useConnectionStore } from '../../store/store';
-import { snapshotAPI } from '../../lib/client';
+import { snapshotAPI } from '../../lib';
 import toast from 'react-hot-toast';
 
 // Risk level colors and icons

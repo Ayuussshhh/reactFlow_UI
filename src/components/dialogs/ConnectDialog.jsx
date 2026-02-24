@@ -5,7 +5,9 @@
  */
 import { useState } from 'react';
 import { useUIStore, useConnectionStore, useSchemaStore, useCanvasStore } from '../../store/store';
-import { connectionAPI } from '../../lib/client';
+import { useProjectStore } from '../../store/projectStore';
+import { connectionAPI, projectsAPI } from '../../lib';
+import { getErrorMessage, logger } from '../../lib/utils';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
   XMarkIcon,
@@ -21,6 +23,7 @@ export default function ConnectDialog() {
   const { setConnection, setConnecting, isConnecting } = useConnectionStore();
   const { setSchema, setLoading: setSchemaLoading } = useSchemaStore();
   const { buildFromSchema } = useCanvasStore();
+  const { currentProject, setCurrentConnection } = useProjectStore();
 
   const [connectionString, setConnectionString] = useState('');
   const [name, setName] = useState('');
@@ -29,52 +32,112 @@ export default function ConnectDialog() {
   const [isTesting, setIsTesting] = useState(false);
 
   const handleTest = async () => {
-    if (!connectionString) return;
+    if (!connectionString || !connectionString.trim()) {
+      toast.error('Please enter a connection string');
+      return;
+    }
     
     setIsTesting(true);
     setTestResult(null);
     
     try {
-      const result = await connectionAPI.test(connectionString);
-      setTestResult({ success: true, ...result });
+      const result = await connectionAPI.test(connectionString.trim());
+      
+      if (result.success) {
+        setTestResult({
+          success: true,
+          latencyMs: result.latencyMs || 0,
+          serverVersion: result.serverVersion || 'Unknown',
+        });
+        toast.success('Connection successful!');
+      } else {
+        throw new Error('Connection test failed');
+      }
     } catch (error) {
-      setTestResult({ success: false, message: error.message });
+      const errorMsg = getErrorMessage(error);
+      logger.warn('ConnectDialog', 'Connection test failed', { message: errorMsg });
+      setTestResult({
+        success: false,
+        message: errorMsg,
+      });
+      toast.error(errorMsg);
     } finally {
       setIsTesting(false);
     }
   };
 
   const handleConnect = async () => {
-    if (!connectionString) return;
+    // Validation
+    if (!connectionString || !connectionString.trim()) {
+      toast.error('Please enter a connection string');
+      return;
+    }
+    
+    if (!currentProject) {
+      toast.error('Please select a project first');
+      return;
+    }
     
     setConnecting(true);
     setSchemaLoading(true);
     
     try {
-      const result = await connectionAPI.connect(connectionString, name, environment);
+      // Step 1: Connect to database and introspect schema
+      console.log('Step 1: Connecting to database...');
+      const result = await connectionAPI.connect(
+        connectionString.trim(),
+        name.trim() || undefined,
+        environment
+      );
       
-      // Set connection
+      if (!result.connection) {
+        throw new Error('Failed to establish connection');
+      }
+      
+      console.log('Step 2: Saving connection to project...');
+      // Step 2: Save connection to project
+      const savedConnection = await projectsAPI.saveConnection(currentProject.id, {
+        name: name.trim() || 'Default Connection',
+        connection_string: connectionString.trim(),
+        connection_type: 'postgresql',
+        environment,
+      });
+      
+      if (!savedConnection) {
+        throw new Error('Failed to save connection');
+      }
+      
+      console.log('Step 3: Activating connection...');
+      // Step 3: Activate the connection
+      await projectsAPI.activateConnection(currentProject.id, savedConnection.id);
+      
+      console.log('Step 4: Updating stores...');
+      // Step 4: Update stores with connection data
       setConnection(result.connection);
+      setCurrentConnection(savedConnection);
       
-      // Convert schema data
+      // Step 5: Process schema data
       const tables = result.schema?.tables || [];
-      const foreignKeys = result.schema?.foreignKeys || result.schema?.foreign_keys || [];
+      const foreignKeys = result.schema?.foreign_keys || result.schema?.foreignKeys || [];
       
-      // Set schema
-      setSchema(tables, foreignKeys);
+      if (tables.length > 0) {
+        setSchema(tables, foreignKeys);
+        buildFromSchema(tables, foreignKeys);
+      }
       
-      // Build canvas nodes
-      buildFromSchema(tables, foreignKeys);
-      
-      toast.success('Connected successfully!');
+      // Success
+      toast.success(`Connected to ${result.connection.database} successfully!`);
       setConnectDialogOpen(false);
       
       // Reset form
       setConnectionString('');
       setName('');
+      setEnvironment('development');
       setTestResult(null);
     } catch (error) {
-      toast.error(error.message || 'Failed to connect');
+      const errorMsg = getErrorMessage(error);
+      logger.error('ConnectDialog', 'Connection failed', { error, message: errorMsg });
+      toast.error(errorMsg);
     } finally {
       setConnecting(false);
       setSchemaLoading(false);

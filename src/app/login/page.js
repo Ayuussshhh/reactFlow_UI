@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/store';
-import { authAPI } from '../../lib/client';
+import { authAPI } from '../../lib';
 import { BoltIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 

@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/store';
-import { authAPI } from '../../lib/client';
+import { authAPI } from '../../lib';
 import { BoltIcon, EnvelopeIcon, LockClosedIcon, UserIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -23,7 +23,7 @@ export default function RegisterPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/dashboard');
+      router.replace('/projects');
     }
   }, [isAuthenticated, router]);
 
@@ -36,7 +36,7 @@ export default function RegisterPage() {
       const result = await authAPI.register(email, password, name);
       setAuth(result.user, result.tokens.accessToken, result.tokens.refreshToken);
       toast.success('Account created successfully!');
-      router.push('/dashboard');
+      router.push('/projects');
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {

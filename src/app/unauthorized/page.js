@@ -29,7 +29,7 @@ export default function UnauthorizedPage() {
         {/* Actions */}
         <div className="flex items-center justify-center gap-3">
           <Link
-            href="/dashboard"
+            href="/projects"
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-neutral-700 bg-white border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors"
           >
             <ArrowLeftIcon className="w-4 h-4" />

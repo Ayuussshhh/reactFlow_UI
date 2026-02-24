@@ -83,7 +83,7 @@ export default function ProjectsPage() {
   };
 
   const handleOpenProject = (projectId) => {
-    router.push(`/dashboard/${projectId}`);
+    router.push(`/projects/${projectId}`);
   };
 
   const filteredProjects = projects.filter(

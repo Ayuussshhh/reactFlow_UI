@@ -6,8 +6,7 @@
  */
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { projectsAPI } from '../lib';
 
 export const useProjectStore = create(
   persist(
@@ -30,18 +29,11 @@ export const useProjectStore = create(
       fetchProjects: async () => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${API_BASE}/projects`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          });
-
-          if (!response.ok) throw new Error('Failed to fetch projects');
-          const data = await response.json();
-          set({ projects: data.data || [] });
-          return data.data || [];
+          const data = await projectsAPI.list();
+          set({ projects: Array.isArray(data) ? data : [] });
+          return Array.isArray(data) ? data : [];
         } catch (error) {
-          const errorMsg = error.message;
+          const errorMsg = error.message || 'Failed to fetch projects';
           set({ error: errorMsg });
           console.error('Error fetching projects:', error);
           return [];
@@ -54,18 +46,7 @@ export const useProjectStore = create(
       createProject: async (projectData) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${API_BASE}/projects`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-            body: JSON.stringify(projectData),
-          });
-
-          if (!response.ok) throw new Error('Failed to create project');
-          const data = await response.json();
-          const newProject = data.data;
+          const newProject = await projectsAPI.create(projectData);
           
           set((state) => ({
             projects: [...state.projects, newProject],
@@ -74,7 +55,8 @@ export const useProjectStore = create(
           
           return newProject;
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to create project';
+          set({ error: errorMsg });
           console.error('Error creating project:', error);
           throw error;
         } finally {
@@ -86,18 +68,12 @@ export const useProjectStore = create(
       getProject: async (projectId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${API_BASE}/projects/${projectId}`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          });
-
-          if (!response.ok) throw new Error('Failed to fetch project');
-          const data = await response.json();
-          set({ currentProject: data.data });
-          return data.data;
+          const project = await projectsAPI.get(projectId);
+          set({ currentProject: project });
+          return project;
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to fetch project';
+          set({ error: errorMsg });
           console.error('Error fetching project:', error);
           throw error;
         } finally {
@@ -109,26 +85,17 @@ export const useProjectStore = create(
       updateProject: async (projectId, updates) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${API_BASE}/projects/${projectId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-            body: JSON.stringify(updates),
-          });
-
-          if (!response.ok) throw new Error('Failed to update project');
-          const data = await response.json();
+          const updatedProject = await projectsAPI.update(projectId, updates);
           
           set((state) => ({
-            projects: state.projects.map((p) => (p.id === projectId ? data.data : p)),
-            currentProject: data.data,
+            projects: state.projects.map((p) => (p.id === projectId ? updatedProject : p)),
+            currentProject: updatedProject,
           }));
           
-          return data.data;
+          return updatedProject;
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to update project';
+          set({ error: errorMsg });
           console.error('Error updating project:', error);
           throw error;
         } finally {
@@ -140,21 +107,15 @@ export const useProjectStore = create(
       deleteProject: async (projectId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${API_BASE}/projects/${projectId}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          });
-
-          if (!response.ok) throw new Error('Failed to delete project');
+          await projectsAPI.delete(projectId);
           
           set((state) => ({
             projects: state.projects.filter((p) => p.id !== projectId),
             currentProject: state.currentProject?.id === projectId ? null : state.currentProject,
           }));
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to delete project';
+          set({ error: errorMsg });
           console.error('Error deleting project:', error);
           throw error;
         } finally {
@@ -166,21 +127,12 @@ export const useProjectStore = create(
       saveConnection: async (projectId, connectionData) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${API_BASE}/projects/${projectId}/connections`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-            body: JSON.stringify(connectionData),
-          });
-
-          if (!response.ok) throw new Error('Failed to save connection');
-          const data = await response.json();
-          set({ currentConnection: data.data });
-          return data.data;
+          const connection = await projectsAPI.saveConnection(projectId, connectionData);
+          set({ currentConnection: connection });
+          return connection;
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to save connection';
+          set({ error: errorMsg });
           console.error('Error saving connection:', error);
           throw error;
         } finally {
@@ -192,17 +144,11 @@ export const useProjectStore = create(
       getConnections: async (projectId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${API_BASE}/projects/${projectId}/connections`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          });
-
-          if (!response.ok) throw new Error('Failed to fetch connections');
-          const data = await response.json();
-          return data.data || [];
+          const connections = await projectsAPI.getConnections(projectId);
+          return Array.isArray(connections) ? connections : [];
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to fetch connections';
+          set({ error: errorMsg });
           console.error('Error fetching connections:', error);
           return [];
         } finally {
@@ -214,22 +160,12 @@ export const useProjectStore = create(
       activateConnection: async (projectId, connectionId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(
-            `${API_BASE}/projects/${projectId}/connections/${connectionId}/activate`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-              },
-            }
-          );
-
-          if (!response.ok) throw new Error('Failed to activate connection');
-          const data = await response.json();
-          set({ currentConnection: data.data });
-          return data.data;
+          const connection = await projectsAPI.activateConnection(projectId, connectionId);
+          set({ currentConnection: connection });
+          return connection;
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to activate connection';
+          set({ error: errorMsg });
           console.error('Error activating connection:', error);
           throw error;
         } finally {
@@ -241,18 +177,14 @@ export const useProjectStore = create(
       removeConnection: async (projectId, connectionId) => {
         try {
           set({ isLoading: true, error: null });
-          await fetch(`${API_BASE}/projects/${projectId}/connections/${connectionId}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          });
+          await projectsAPI.deleteConnection(projectId, connectionId);
 
           set((state) => ({
             currentConnection: state.currentConnection?.id === connectionId ? null : state.currentConnection,
           }));
         } catch (error) {
-          set({ error: error.message });
+          const errorMsg = error.message || 'Failed to remove connection';
+          set({ error: errorMsg });
           console.error('Error removing connection:', error);
           throw error;
         } finally {

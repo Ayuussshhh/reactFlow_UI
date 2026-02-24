@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Project Dashboard - Individual project workspace
+ * Project Workspace - Individual project with ERD and database connections
  * Handles database connections and schema visualization for specific project
  */
 
@@ -24,7 +24,7 @@ import { AuthGuard } from '../../../components/auth';
 import { useProjectStore } from '../../../store/projectStore';
 import { useConnectionStore, useUIStore } from '../../../store/store';
 
-export default function ProjectDashboardPage({ params }) {
+export default function ProjectPage({ params }) {
   const router = useRouter();
   const paramData = useParams();
   const projectId = paramData?.projectId || params?.projectId;

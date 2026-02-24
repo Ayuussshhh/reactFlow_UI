@@ -5,5 +5,5 @@
 import { redirect } from 'next/navigation';
 
 export default function ERDPage() {
-  redirect('/dashboard');
+  redirect('/projects');
 }
