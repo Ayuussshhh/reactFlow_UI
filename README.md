@@ -1,5 +1,7 @@
 ## Getting Started
 
+Changed the Website name to newBase
+
 First, run the development server:
 
 ```bash
