@@ -23,7 +23,7 @@ export default function UnauthorizedPage() {
         {/* Message */}
         <h1 className="text-3xl font-bold text-neutral-900 mb-3">Access Denied</h1>
         <p className="text-neutral-600 mb-8">
-          You don't have permission to access this page. Contact your administrator if you believe this is an error.
+          You don&apos;t have permission to access this page. Contact your administrator if you believe this is an error.
         </p>
 
         {/* Actions */}

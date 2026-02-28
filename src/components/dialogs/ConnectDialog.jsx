@@ -95,11 +95,11 @@ export default function ConnectDialog() {
       }
       
       console.log('Step 2: Saving connection to project...');
-      // Step 2: Save connection to project
+      // Step 2: Save connection to project (using camelCase for backend)
       const savedConnection = await projectsAPI.saveConnection(currentProject.id, {
         name: name.trim() || 'Default Connection',
-        connection_string: connectionString.trim(),
-        connection_type: 'postgresql',
+        connectionString: connectionString.trim(),
+        connectionType: 'postgresql',
         environment,
       });
       
