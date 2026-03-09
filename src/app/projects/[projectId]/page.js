@@ -156,11 +156,11 @@ export default function ProjectPage({ params }) {
             {/* Sidebar - Desktop always visible, mobile overlay */}
             {sidebarOpen && (
               <>
-                <div className="hidden md:block md:w-64 border-r border-neutral-200 bg-neutral-50 overflow-y-auto">
+                <div className="hidden md:block md:w-80 border-r border-neutral-200 bg-white overflow-y-auto flex-shrink-0">
                   <Sidebar />
                 </div>
                 {/* Mobile overlay */}
-                <div className="md:hidden absolute left-0 top-0 bottom-0 w-64 border-r border-neutral-200 bg-neutral-50 overflow-y-auto shadow-lg z-40">
+                <div className="md:hidden absolute left-0 top-0 bottom-0 w-80 border-r border-neutral-200 bg-white overflow-y-auto shadow-lg z-40 flex-shrink-0">
                   <Sidebar />
                 </div>
               </>

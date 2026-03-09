@@ -88,15 +88,13 @@ export default function Sidebar() {
   };
 
   return (
-    <AnimatePresence>
-      {sidebarOpen && (
-        <motion.aside
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 280, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="h-full bg-white border-r border-slate-200 flex flex-col overflow-hidden flex-shrink-0"
-        >
+    <motion.aside
+      initial={{ x: -280, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -280, opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="w-80 h-full bg-white border-r border-slate-200 flex flex-col overflow-hidden flex-shrink-0"
+    >
           {/* Header */}
           <div className="p-4 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-800 mb-3">Schema Explorer</h2>
@@ -240,7 +238,5 @@ export default function Sidebar() {
             </div>
           </div>
         </motion.aside>
-      )}
-    </AnimatePresence>
   );
 }

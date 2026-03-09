@@ -337,7 +337,10 @@ const TableNode = memo(({ data, selected }) => {
       <div className="divide-y divide-slate-100">
         {/* Primary Key Section */}
         {pkColumns.length > 0 && (
-          <div className="bg-amber-50/50">
+          <div className="bg-amber-50/40 border-b-2 border-amber-100">
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-amber-700 uppercase tracking-wider bg-amber-100/50">
+              Primary Keys ({pkColumns.length})
+            </div>
             {pkColumns.map((column) => (
               <ColumnRow
                 key={column.name}
@@ -351,7 +354,10 @@ const TableNode = memo(({ data, selected }) => {
 
         {/* Foreign Key Section */}
         {fkColumns.length > 0 && (
-          <div className="bg-indigo-50/30">
+          <div className="bg-indigo-50/50 border-b-2 border-indigo-100">
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-indigo-700 uppercase tracking-wider bg-indigo-100/50">
+              Foreign Keys ({fkColumns.length})
+            </div>
             {fkColumns.map((column) => (
               <ColumnRow
                 key={column.name}
@@ -364,15 +370,24 @@ const TableNode = memo(({ data, selected }) => {
         )}
 
         {/* Regular Columns */}
-        <div className="max-h-[200px] overflow-y-auto scrollbar-thin">
-          {regularColumns.map((column) => (
-            <ColumnRow
-              key={column.name}
-              column={column}
-              devMode={devMode}
-            />
-          ))}
-        </div>
+        {regularColumns.length > 0 && (
+          <div>
+            {regularColumns.length > 5 && (
+              <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider bg-slate-50">
+                Other Columns ({regularColumns.length})
+              </div>
+            )}
+            <div className="max-h-[200px] overflow-y-auto scrollbar-thin">
+              {regularColumns.map((column) => (
+                <ColumnRow
+                  key={column.name}
+                  column={column}
+                  devMode={devMode}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Empty State */}
         {(!table.columns || table.columns.length === 0) && (
@@ -391,14 +406,14 @@ const ColumnRow = memo(({ column, isPK, isFK, devMode }) => {
   const colors = COLOR_CLASSES[typeConfig.color] || COLOR_CLASSES.slate;
 
   return (
-    <div className="relative px-3 py-1.5 flex items-center gap-2 hover:bg-slate-50/80 transition-colors group/row">
+    <div className="relative px-3 py-2 flex items-start gap-2.5 hover:bg-slate-50/80 transition-colors group/row border-b border-slate-50/50 last:border-0">
       {/* Left Handle */}
       <Handle
         type="target"
         position={Position.Left}
         id={column.name}
         className={clsx(
-          '!w-2.5 !h-2.5 !border-2 !border-white !-left-1',
+          '!w-2.5 !h-2.5 !border-2 !border-white !-left-1.5',
           '!bg-slate-300 group-hover/row:!bg-indigo-400',
           'transition-colors'
         )}
@@ -415,23 +430,25 @@ const ColumnRow = memo(({ column, isPK, isFK, devMode }) => {
         )}
       </div>
 
-      {/* Column Name */}
-      <span className={clsx(
-        'flex-1 text-xs font-medium truncate',
-        isPK ? 'text-amber-700' : isFK ? 'text-indigo-700' : 'text-slate-700'
-      )}>
-        {column.name}
-        {!column.nullable && <span className="text-red-400 ml-0.5">*</span>}
-      </span>
-
-      {/* Type Badge */}
-      <span className={clsx(
-        'px-1.5 py-0.5 rounded text-[10px] font-medium',
-        colors.bg,
-        colors.text
-      )}>
-        {devMode ? column.type : typeConfig.label}
-      </span>
+      {/* Column Info - Name and Type */}
+      <div className="flex-1 min-w-0">
+        <div className={clsx(
+          'text-xs font-medium truncate',
+          isPK ? 'text-amber-700' : isFK ? 'text-indigo-700' : 'text-slate-700'
+        )}>
+          {column.name}
+          {!column.nullable && <span className="text-red-500 ml-0.5 font-bold">*</span>}
+        </div>
+        {/* Data Type Display - Always visible */}
+        <div className={clsx(
+          'text-[11px] mt-0.5 px-1 py-0.5 rounded',
+          colors.bg,
+          colors.text,
+          'font-medium'
+        )}>
+          {column.type}
+        </div>
+      </div>
 
       {/* Right Handle */}
       <Handle
@@ -439,7 +456,7 @@ const ColumnRow = memo(({ column, isPK, isFK, devMode }) => {
         position={Position.Right}
         id={column.name}
         className={clsx(
-          '!w-2.5 !h-2.5 !border-2 !border-white !-right-1',
+          '!w-2.5 !h-2.5 !border-2 !border-white !-right-1.5',
           '!bg-slate-300 group-hover/row:!bg-indigo-400',
           'transition-colors'
         )}

@@ -60,7 +60,7 @@ export default function Home() {
   // Redirect authenticated users to dashboard
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/projects');
+      router.push('/dashboard');
     }
   }, [isAuthenticated, router]);
 
