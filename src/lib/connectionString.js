@@ -6,14 +6,14 @@
 export const DATABASE_TYPES = {
   POSTGRESQL: 'postgresql',
   MYSQL: 'mysql',
-  MARIADB: 'mariadb',
   MONGODB: 'mongodb',
-  AZURE_SQL: 'azure-sql',
+  MARIADB: 'mariadb',
+  SUPABASE: 'supabase',
+  NEON: 'neon',
   AWS_RDS_POSTGRES: 'aws-rds-postgres',
   AWS_RDS_MYSQL: 'aws-rds-mysql',
-  SUPABASE: 'supabase',
+  AZURE_SQL: 'azure-sql',
   GOOGLE_CLOUD_SQL: 'google-cloud-sql',
-  NEON: 'neon',
 };
 
 export const DATABASE_LABELS = {

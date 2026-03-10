@@ -37,7 +37,9 @@ export const connectionAPI = {
       payload.environment = environment;
     }
     
-    const { data } = await api.post('/api/connections', payload);
+    // Use a longer timeout for database connections — remote hosts (AWS RDS, etc.)
+    // can take several seconds to establish a TLS handshake and authenticate.
+    const { data } = await api.post('/api/connections', payload, { timeout: 60000 });
     
     // Backend returns: { success, message, data: { connection, schema } }
     const result = data.data || data;
@@ -58,7 +60,7 @@ export const connectionAPI = {
   test: async (connectionString) => {
     const { data } = await api.post('/api/connections/test', { 
       connectionString: connectionString.trim(),
-    });
+    }, { timeout: 60000 });
     
     const result = data.data || data;
     
