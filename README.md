@@ -1,6 +1,6 @@
-# SchemaFlow
+# Schemaflow 
 
-**Database Governance Platform - GitHub PRs for Databases**
+**Database Governance Platform**
 
 SchemaFlow is a modern web application that brings GitHub-style Pull Request workflows to database schema management. Propose, review, approve, and execute schema changes with complete visibility and control.
 
